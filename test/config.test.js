@@ -2,11 +2,11 @@ const assert = require('node:assert/strict');
 const { validateAlphabet, validateLeader, loadConfig, DEFAULT_CONFIG } = require('../src/claude-vimium.js');
 
 // valid
-assert.deepEqual(validateAlphabet('asdfgqwertzxcv'), { ok: true });
+assert.deepEqual(validateAlphabet('asfgqwertzxcv'), { ok: true });
 
 // reserved keys are rejected, and the reason names the offending character
 {
-  const result = validateAlphabet('asdfj');
+  const result = validateAlphabet('asfgj');
   assert.equal(result.ok, false);
   assert.match(result.reason, /j/);
 }
@@ -19,11 +19,19 @@ assert.equal(validateAlphabet('').ok, false);
 assert.equal(validateAlphabet('a').ok, false);
 
 // Every reserved key is rejected, wherever it sits in the string.
-for (const ch of ['h', 'j', 'k', 'l', ',', '?']) {
+for (const ch of ['h', 'j', 'k', 'l', 'd', 'u', ',', '?']) {
   assert.equal(validateAlphabet(ch + 'asdf').ok, false, `leading ${ch}`);
   assert.equal(validateAlphabet('as' + ch + 'df').ok, false, `middle ${ch}`);
   assert.equal(validateAlphabet('asdf' + ch).ok, false, `trailing ${ch}`);
 }
+
+// d and u became reserved when they gained half-page scrolling.
+assert.equal(validateAlphabet('asfgd').ok, false);
+assert.equal(validateAlphabet('asfgu').ok, false);
+
+// DEFAULT_CONFIG.alphabet must pass its own validation.
+assert.equal(DEFAULT_CONFIG.alphabet, 'asfgqwertzxcv');
+assert.equal(validateAlphabet(DEFAULT_CONFIG.alphabet).ok, true);
 
 // loadConfig falls back on garbage rather than throwing
 assert.deepEqual(loadConfig(null), DEFAULT_CONFIG);
@@ -33,8 +41,8 @@ assert.deepEqual(loadConfig('{"scrollAmount":-5}').scrollAmount, DEFAULT_CONFIG.
 
 // valid overrides survive
 {
-  const loaded = loadConfig('{"alphabet":"asdf","scrollAmount":120}');
-  assert.equal(loaded.alphabet, 'asdf');
+  const loaded = loadConfig('{"alphabet":"asfg","scrollAmount":120}');
+  assert.equal(loaded.alphabet, 'asfg');
   assert.equal(loaded.scrollAmount, 120);
 }
 

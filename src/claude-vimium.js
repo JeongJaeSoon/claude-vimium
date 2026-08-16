@@ -88,11 +88,11 @@
     return rows.flatMap((row) => row.items.sort((a, b) => a.rect.left - b.rect.left));
   }
 
-  const RESERVED_KEYS = ['h', 'j', 'k', 'l', ',', '?'];
+  const RESERVED_KEYS = ['h', 'j', 'k', 'l', 'd', 'u', ',', '?'];
 
   const DEFAULT_CONFIG = {
     leader: { key: ';', ctrl: true, meta: false, alt: false, shift: false },
-    alphabet: 'asdfgqwertzxcv',
+    alphabet: 'asfgqwertzxcv',
     scrollAmount: 60,
   };
 
@@ -323,7 +323,8 @@
         [config.alphabet.slice(0, 4) + '…', '힌트 라벨 입력 (현재 문자셋)'],
         ['h j k l', '좌 하 상 우 스크롤'],
         ['↑ ↓ ← →', '같음'],
-        ['Ctrl+d / Ctrl+u', '반 페이지 아래 / 위'],
+        ['d / u', '반 페이지 아래 / 위'],
+        ['Ctrl+d / Ctrl+u', '같음'],
         ['Home / End', '맨 위 / 맨 아래'],
         ['Backspace', '입력한 라벨 한 글자 취소 (빈 상태면 종료)'],
         [',', '설정'],
@@ -585,11 +586,17 @@
     queueReposition();
   }
 
+  function scrollHalfPage(direction) {
+    scrollBy(0, (direction * findScroller().clientHeight) / 2);
+  }
+
   const SCROLL_KEYS = {
     j: (c) => scrollBy(0, c.scrollAmount),
     k: (c) => scrollBy(0, -c.scrollAmount),
     h: (c) => scrollBy(-c.scrollAmount, 0),
     l: (c) => scrollBy(c.scrollAmount, 0),
+    d: () => scrollHalfPage(1),
+    u: () => scrollHalfPage(-1),
   };
 
   const ARROW_KEYS = {
@@ -604,8 +611,7 @@
     if (e.ctrlKey && !e.metaKey && !e.altKey) {
       const ch = latinChar(e);
       if (ch === 'd' || ch === 'u') {
-        const page = findScroller().clientHeight / 2;
-        scrollBy(0, ch === 'd' ? page : -page);
+        scrollHalfPage(ch === 'd' ? 1 : -1);
         return true;
       }
       return false;

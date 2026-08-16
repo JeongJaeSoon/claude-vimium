@@ -27,7 +27,7 @@ function noPrefixCollision(labels) {
 
 // default alphabet, realistic count
 {
-  const labels = generateLabels(40, 'asdfgqwertzxcv');
+  const labels = generateLabels(40, 'asfgqwertzxcv');
   assert.equal(labels.length, 40);
   assert.ok(noPrefixCollision(labels), 'labels must be prefix-free');
   assert.equal(new Set(labels).size, 40, 'labels must be unique');

@@ -71,7 +71,7 @@ assert.equal(tallElemResult[1].key, 'separate', 'separate row starts above tall 
 
 // ── resolveHintChar ──────────────────────────────────────────────
 
-const ALPHA = 'asdfgqwertzxcv';
+const ALPHA = 'asfgqwertzxcv';
 
 // Latin keyboard: the logical key is in the alphabet and wins.
 assert.equal(resolveHintChar({ key: 'a', code: 'KeyA' }, ALPHA), 'a');
@@ -87,6 +87,10 @@ assert.equal(resolveHintChar({ key: 'ㅏ', code: 'KeyK' }, ALPHA), null);
 // Reserved navigation keys must never resolve to a hint character.
 assert.equal(resolveHintChar({ key: 'j', code: 'KeyJ' }, ALPHA), null);
 assert.equal(resolveHintChar({ key: 'h', code: 'KeyH' }, ALPHA), null);
+
+// d and u are scroll commands now, so they never resolve as hint characters.
+assert.equal(resolveHintChar({ key: 'd', code: 'KeyD' }, ALPHA), null);
+assert.equal(resolveHintChar({ key: 'u', code: 'KeyU' }, ALPHA), null);
 
 // Non-character keys and missing fields.
 assert.equal(resolveHintChar({ key: 'Enter', code: 'Enter' }, ALPHA), null);
