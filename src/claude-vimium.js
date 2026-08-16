@@ -75,6 +75,38 @@
 
   // ─── runtime ─────────────────────────────────────────────────────
 
+  const config = {
+    leader: { key: ';', ctrl: true, meta: false, alt: false, shift: false },
+    alphabet: 'asdfgqwertzxcv',
+    scrollAmount: 60,
+  };
+
+  let toastTimer = null;
+  function toast(message) {
+    const overlay = ensureOverlay();
+    let el = overlay.querySelector('[data-cv-toast]');
+    if (!el) {
+      el = document.createElement('div');
+      el.dataset.cvToast = '';
+      el.style.cssText = [
+        'position:fixed',
+        'bottom:24px',
+        'left:50%',
+        'transform:translateX(-50%)',
+        'padding:6px 12px',
+        'border-radius:6px',
+        'background:rgba(0,0,0,.85)',
+        'color:#fff',
+        'font:500 12px/1.3 system-ui,sans-serif',
+      ].join(';');
+      overlay.appendChild(el);
+    }
+    el.textContent = message;
+    el.style.display = '';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.style.display = 'none'; }, 1600);
+  }
+
   const HINT_SELECTOR = [
     'button',
     'a[href]',
@@ -88,6 +120,126 @@
     '[tabindex]:not([tabindex="-1"])',
     '[contenteditable="true"]',
   ].join(',');
+
+  const OVERLAY_ID = 'claude-vimium-overlay';
+  const hintState = { active: false, entries: [], typed: '' };
+  let overlayEl = null;
+  let repositionQueued = false;
+  let observer = null;
+
+  function ensureOverlay() {
+    if (overlayEl && overlayEl.isConnected) return overlayEl;
+    overlayEl = document.createElement('div');
+    overlayEl.id = OVERLAY_ID;
+    overlayEl.style.cssText = [
+      'position:fixed',
+      'inset:0',
+      'z-index:2147483647',
+      'pointer-events:none',
+      'font:600 11px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace',
+    ].join(';');
+    document.body.appendChild(overlayEl);
+    return overlayEl;
+  }
+
+  function makeLabelNode(label) {
+    const node = document.createElement('div');
+    node.textContent = label;
+    node.style.cssText = [
+      'position:fixed',
+      'padding:1px 3px',
+      'border-radius:3px',
+      'background:#ffd400',
+      'color:#000',
+      'box-shadow:0 1px 3px rgba(0,0,0,.4)',
+      'white-space:nowrap',
+    ].join(';');
+    return node;
+  }
+
+  // Nudge labels that would sit on top of each other. Dense toolbars put
+  // several targets within a few pixels; without this the labels are
+  // unreadable exactly where hints matter most.
+  function placeLabels() {
+    const taken = [];
+    for (const entry of hintState.entries) {
+      if (entry.node.style.display === 'none') continue;
+      const r = entry.el.getBoundingClientRect();
+      let top = r.top;
+      let left = r.left;
+      while (taken.some((t) => Math.abs(t.top - top) < 12 && Math.abs(t.left - left) < 18)) {
+        left += 14;
+        if (left > r.right + 28) {
+          left = r.left;
+          top += 12;
+        }
+      }
+      taken.push({ top, left });
+      entry.node.style.top = `${Math.max(0, top)}px`;
+      entry.node.style.left = `${Math.max(0, left)}px`;
+    }
+  }
+
+  function queueReposition() {
+    if (repositionQueued) return;
+    repositionQueued = true;
+    requestAnimationFrame(() => {
+      repositionQueued = false;
+      if (!hintState.active) return;
+      // Drop entries whose element left the DOM, then re-place the rest.
+      for (const entry of hintState.entries) {
+        if (!entry.el.isConnected) entry.node.style.display = 'none';
+      }
+      placeLabels();
+    });
+  }
+
+  function showHints() {
+    hideHints();
+    const targets = collectTargets();
+    if (targets.length === 0) {
+      toast('힌트 대상 없음');
+      return;
+    }
+
+    const labels = generateLabels(targets.length, config.alphabet);
+    const overlay = ensureOverlay();
+    hintState.entries = labels.map((label, i) => {
+      const node = makeLabelNode(label);
+      overlay.appendChild(node);
+      return { el: targets[i], label, node };
+    });
+    hintState.active = true;
+    hintState.typed = '';
+    placeLabels();
+
+    window.addEventListener('scroll', queueReposition, true);
+    window.addEventListener('resize', queueReposition);
+    observer = new MutationObserver(queueReposition);
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  function hideHints() {
+    hintState.active = false;
+    hintState.entries = [];
+    hintState.typed = '';
+    if (overlayEl) overlayEl.replaceChildren();
+    window.removeEventListener('scroll', queueReposition, true);
+    window.removeEventListener('resize', queueReposition);
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+  }
+
+  function filterHints(typed) {
+    for (const entry of hintState.entries) {
+      const match = entry.label.startsWith(typed);
+      entry.node.style.display = match ? '' : 'none';
+      entry.node.style.opacity = match && typed ? '1' : '';
+    }
+    placeLabels();
+  }
 
   function collectTargets() {
     const viewport = { width: window.innerWidth, height: window.innerHeight };
@@ -123,7 +275,7 @@
       delete window.__claudeVimium;
     }
 
-    window.__claudeVimium = { teardown, on, collectTargets };
+    window.__claudeVimium = { teardown, on, collectTargets, showHints, hideHints, hintState };
     console.log('[claude-vimium] ready');
   }
 
