@@ -32,14 +32,68 @@
     return labels;
   }
 
+  function passesGeometry(rect, viewport) {
+    if (rect.width === 0 || rect.height === 0) return false;
+    if (rect.bottom <= 0 || rect.top >= viewport.height) return false;
+    if (rect.right <= 0 || rect.left >= viewport.width) return false;
+    return true;
+  }
+
+  function passesStyle(style) {
+    if (style.display === 'none') return false;
+    if (style.visibility === 'hidden') return false;
+    if (parseFloat(style.opacity) < 0.01) return false;
+    return true;
+  }
+
   // ─── Node test export ────────────────────────────────────────────
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { generateLabels };
+    module.exports = { generateLabels, passesGeometry, passesStyle };
     return; // no DOM in Node; stop before init
   }
 
   // ─── runtime ─────────────────────────────────────────────────────
+
+  const HINT_SELECTOR = [
+    'button',
+    'a[href]',
+    'input',
+    'textarea',
+    'select',
+    '[role="button"]',
+    '[role="menuitem"]',
+    '[role="tab"]',
+    '[role="link"]',
+    '[tabindex]:not([tabindex="-1"])',
+    '[contenteditable="true"]',
+  ].join(',');
+
+  function collectTargets() {
+    const viewport = { width: window.innerWidth, height: window.innerHeight };
+    const visible = [...document.querySelectorAll(HINT_SELECTOR)].filter((el) => {
+      if (el.disabled) return false;
+      if (el.closest('#claude-vimium-overlay')) return false;
+      if (!passesGeometry(el.getBoundingClientRect(), viewport)) return false;
+      return passesStyle(getComputedStyle(el));
+    });
+
+    // Keep only the innermost candidate when candidates nest inside one another.
+    const innermost = visible.filter(
+      (el) => !visible.some((other) => other !== el && el.contains(other)),
+    );
+
+    // Screen order: top to bottom, then left to right. Rows are bucketed so
+    // that elements on the same visual row are not reordered by sub-pixel
+    // differences in their top coordinate.
+    return innermost.sort((a, b) => {
+      const ra = a.getBoundingClientRect();
+      const rb = b.getBoundingClientRect();
+      const rowA = Math.round(ra.top / 20);
+      const rowB = Math.round(rb.top / 20);
+      return rowA - rowB || ra.left - rb.left;
+    });
+  }
 
   function init() {
     // Re-running this file must not leave a second instance behind.
@@ -57,7 +111,7 @@
       delete window.__claudeVimium;
     }
 
-    window.__claudeVimium = { teardown, on };
+    window.__claudeVimium = { teardown, on, collectTargets };
     console.log('[claude-vimium] ready');
   }
 
