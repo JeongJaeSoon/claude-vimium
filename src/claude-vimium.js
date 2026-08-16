@@ -110,6 +110,21 @@
     return { ok: true };
   }
 
+  function validateLeader(leader) {
+    if (!leader || typeof leader.key !== 'string' || !leader.key) {
+      return { ok: false, reason: '리더 키를 입력하세요' };
+    }
+    // A bare key fires on every keystroke, which makes the app untypeable —
+    // and the user cannot undo it, because the settings panel is only
+    // reachable through the very key that is now broken. Require a modifier
+    // so that trap cannot be built. Shift alone does not count: Shift+a is
+    // just a capital A to anyone typing.
+    if (!leader.ctrl && !leader.alt && !leader.meta) {
+      return { ok: false, reason: '리더 키에는 Ctrl, Alt, Cmd 중 하나가 필요합니다' };
+    }
+    return { ok: true };
+  }
+
   function loadConfig(raw) {
     const config = {
       leader: { ...DEFAULT_CONFIG.leader },
@@ -130,7 +145,7 @@
     if (Number.isFinite(parsed.scrollAmount) && parsed.scrollAmount > 0) {
       config.scrollAmount = parsed.scrollAmount;
     }
-    if (parsed.leader && typeof parsed.leader.key === 'string' && parsed.leader.key) {
+    if (validateLeader(parsed.leader).ok) {
       config.leader = {
         key: parsed.leader.key,
         ctrl: !!parsed.leader.ctrl,
@@ -147,7 +162,7 @@
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       generateLabels, latinChar, resolveHintChar, passesGeometry, passesStyle, orderByScreenPosition,
-      validateAlphabet, loadConfig, DEFAULT_CONFIG,
+      validateAlphabet, validateLeader, loadConfig, DEFAULT_CONFIG,
     };
     return; // no DOM in Node; stop before init
   }
@@ -159,7 +174,13 @@
 
   function saveConfig(next) {
     config = next;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // Storage disabled or full. The in-memory config still applies for
+      // this session; only persistence is lost.
+      console.warn('[claude-vimium] could not persist settings');
+    }
   }
 
   function describeLeader(l) {
@@ -271,6 +292,11 @@
       save.textContent = '저장';
       save.style.cssText = 'padding:5px 14px;font:inherit';
       save.addEventListener('click', () => {
+        const leaderCheck = validateLeader(draft.leader);
+        if (!leaderCheck.ok) {
+          error.textContent = leaderCheck.reason;
+          return;
+        }
         const check = validateAlphabet(alphaInput.value);
         if (!check.ok) {
           error.textContent = check.reason;
