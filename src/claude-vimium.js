@@ -316,6 +316,39 @@
     });
   }
 
+  function openHelp() {
+    openPanel('claude-vimium 키 바인딩', (panel) => {
+      const rows = [
+        [describeLeader(config.leader), '힌트 모드 진입 / 종료'],
+        [config.alphabet.slice(0, 4) + '…', '힌트 라벨 입력 (현재 문자셋)'],
+        ['h j k l', '좌 하 상 우 스크롤'],
+        ['↑ ↓ ← →', '같음'],
+        ['Ctrl+d / Ctrl+u', '반 페이지 아래 / 위'],
+        ['Home / End', '맨 위 / 맨 아래'],
+        ['Backspace', '입력한 라벨 한 글자 취소 (빈 상태면 종료)'],
+        [',', '설정'],
+        ['?', '이 도움말'],
+        ['Esc', '모드 종료'],
+      ];
+
+      const table = document.createElement('table');
+      table.style.cssText = 'border-collapse:collapse';
+      for (const [keys, description] of rows) {
+        const tr = document.createElement('tr');
+        const kbd = document.createElement('td');
+        kbd.textContent = keys;
+        kbd.style.cssText =
+          'padding:3px 14px 3px 0;font:600 12px ui-monospace,Menlo,monospace;white-space:nowrap';
+        const desc = document.createElement('td');
+        desc.textContent = description;
+        desc.style.cssText = 'padding:3px 0';
+        tr.append(kbd, desc);
+        table.appendChild(tr);
+      }
+      panel.appendChild(table);
+    });
+  }
+
   let toastTimer = null;
   function toast(message) {
     const overlay = ensureOverlay();
@@ -673,6 +706,11 @@
 
     if (e.key === ',') {
       openSettings();
+      return;
+    }
+
+    if (e.key === '?') {
+      openHelp();
       return;
     }
 
