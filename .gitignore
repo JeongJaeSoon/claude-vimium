@@ -1,1 +1,6 @@
 .DS_Store
+
+# Scratch space for the subagent-driven development workflow: ledger,
+# task briefs, implementer reports, review packages. Git history is the
+# durable record.
+.superpowers/
