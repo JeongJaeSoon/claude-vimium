@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { passesGeometry, passesStyle, orderByScreenPosition } = require('../src/claude-vimium.js');
+const { passesGeometry, passesStyle, orderByScreenPosition, resolveHintChar } = require('../src/claude-vimium.js');
 
 const VIEWPORT = { width: 1000, height: 800 };
 const rect = (o) => ({
@@ -68,5 +68,34 @@ const tallElemResult = orderByScreenPosition([
 ]);
 assert.equal(tallElemResult[0].key, 'tall', 'tall element opens its row');
 assert.equal(tallElemResult[1].key, 'separate', 'separate row starts above tall element bottom');
+
+// ── resolveHintChar ──────────────────────────────────────────────
+
+const ALPHA = 'asdfgqwertzxcv';
+
+// Latin keyboard: the logical key is in the alphabet and wins.
+assert.equal(resolveHintChar({ key: 'a', code: 'KeyA' }, ALPHA), 'a');
+assert.equal(resolveHintChar({ key: 'S', code: 'KeyS' }, ALPHA), 's');
+
+// Korean IME: the logical key is a jamo, so the physical key decides.
+assert.equal(resolveHintChar({ key: 'ㅁ', code: 'KeyA' }, ALPHA), 'a');
+assert.equal(resolveHintChar({ key: 'ㄴ', code: 'KeyS' }, ALPHA), 's');
+
+// A physical key outside the alphabet stays unmatched even via fallback.
+assert.equal(resolveHintChar({ key: 'ㅏ', code: 'KeyK' }, ALPHA), null);
+
+// Reserved navigation keys must never resolve to a hint character.
+assert.equal(resolveHintChar({ key: 'j', code: 'KeyJ' }, ALPHA), null);
+assert.equal(resolveHintChar({ key: 'h', code: 'KeyH' }, ALPHA), null);
+
+// Non-character keys and missing fields.
+assert.equal(resolveHintChar({ key: 'Enter', code: 'Enter' }, ALPHA), null);
+assert.equal(resolveHintChar({ key: 'Backspace', code: 'Backspace' }, ALPHA), null);
+assert.equal(resolveHintChar({ key: '', code: '' }, ALPHA), null);
+assert.equal(resolveHintChar({}, ALPHA), null);
+
+// A custom alphabet changes what resolves.
+assert.equal(resolveHintChar({ key: 'ㅁ', code: 'KeyA' }, 'xyz'), null);
+assert.equal(resolveHintChar({ key: 'ㅋ', code: 'KeyZ' }, 'xyz'), 'z');
 
 console.log('filters.test.js OK');

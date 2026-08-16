@@ -5,6 +5,27 @@
 
   // ─── pure helpers (tested from Node) ─────────────────────────────
 
+  // Which hint character did this keystroke mean?
+  //
+  // Prefer the logical key: on a Dvorak or AZERTY layout the label on screen
+  // matches what `key` reports, and the physical key does not.
+  //
+  // Fall back to the physical key only when the logical one is not in the
+  // alphabet at all. That is the Korean/Japanese case: the IME reports a
+  // composed jamo ('ㅁ') for the key printed 'a', so matching on `key` can
+  // never succeed no matter what the user presses.
+  function resolveHintChar(event, alphabet) {
+    const logical = typeof event.key === 'string' ? event.key.toLowerCase() : '';
+    if (logical.length === 1 && alphabet.includes(logical)) return logical;
+
+    const physical = /^Key([A-Z])$/.exec(event.code || '');
+    if (physical) {
+      const ch = physical[1].toLowerCase();
+      if (alphabet.includes(ch)) return ch;
+    }
+    return null;
+  }
+
   // Assign the shortest possible labels without any label prefixing another.
   // Single-character labels are handed out first, in the order the caller
   // supplies (callers pass candidates in screen order so the top-left
@@ -69,7 +90,7 @@
   // ─── Node test export ────────────────────────────────────────────
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { generateLabels, passesGeometry, passesStyle, orderByScreenPosition };
+    module.exports = { generateLabels, resolveHintChar, passesGeometry, passesStyle, orderByScreenPosition };
     return; // no DOM in Node; stop before init
   }
 
@@ -144,7 +165,6 @@
 
   function makeLabelNode(label) {
     const node = document.createElement('div');
-    node.textContent = label;
     node.style.cssText = [
       'position:fixed',
       'padding:1px 3px',
@@ -154,6 +174,16 @@
       'box-shadow:0 1px 3px rgba(0,0,0,.4)',
       'white-space:nowrap',
     ].join(';');
+
+    const typed = document.createElement('span');
+    typed.dataset.cvTyped = '';
+    typed.style.color = 'rgba(0,0,0,.35)';
+
+    const rest = document.createElement('span');
+    rest.dataset.cvRest = '';
+    rest.textContent = label;
+
+    node.append(typed, rest);
     return node;
   }
 
@@ -236,7 +266,9 @@
     for (const entry of hintState.entries) {
       const match = entry.label.startsWith(typed);
       entry.node.style.display = match ? '' : 'none';
-      entry.node.style.opacity = match && typed ? '1' : '';
+      if (!match) continue;
+      entry.node.querySelector('[data-cv-typed]').textContent = entry.label.slice(0, typed.length);
+      entry.node.querySelector('[data-cv-rest]').textContent = entry.label.slice(typed.length);
     }
     placeLabels();
   }
@@ -292,9 +324,15 @@
   }
 
   function onKeyDown(e) {
-    // Never touch keys while an IME is composing — intercepting them
-    // corrupts Korean and Japanese input mid-syllable.
-    if (e.isComposing || e.keyCode === 229) return;
+    // While the user is typing, an IME composition must never be touched —
+    // intercepting it corrupts the syllable being assembled.
+    //
+    // Inside hint mode the calculus flips: no composition is in progress
+    // (we preventDefault every key, so none can start), but a Korean or
+    // Japanese IME still reports keyCode 229 on keydown. Honoring 229 here
+    // would make hint mode unusable on those layouts, so only a genuine
+    // in-flight composition bails out.
+    if (hintState.active ? e.isComposing : (e.isComposing || e.keyCode === 229)) return;
 
     if (!hintState.active) {
       if (matchesLeader(e)) {
@@ -315,14 +353,20 @@
     }
 
     if (e.key === 'Backspace') {
+      // Nothing typed yet — there is nothing to undo, so treat it as "leave".
+      if (!hintState.typed) {
+        hideHints();
+        return;
+      }
       hintState.typed = hintState.typed.slice(0, -1);
       filterHints(hintState.typed);
       return;
     }
 
-    if (e.key.length !== 1) return;
+    const char = resolveHintChar(e, config.alphabet);
+    if (!char) return;
 
-    const next = hintState.typed + e.key;
+    const next = hintState.typed + char;
     const matches = hintState.entries.filter((entry) => entry.label.startsWith(next));
 
     if (matches.length === 0) {
