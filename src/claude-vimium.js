@@ -88,20 +88,198 @@
     return rows.flatMap((row) => row.items.sort((a, b) => a.rect.left - b.rect.left));
   }
 
+  const RESERVED_KEYS = ['h', 'j', 'k', 'l', ',', '?'];
+
+  const DEFAULT_CONFIG = {
+    leader: { key: ';', ctrl: true, meta: false, alt: false, shift: false },
+    alphabet: 'asdfgqwertzxcv',
+    scrollAmount: 60,
+  };
+
+  function validateAlphabet(alphabet) {
+    if (typeof alphabet !== 'string' || alphabet.length < 2) {
+      return { ok: false, reason: '문자셋은 2글자 이상이어야 합니다' };
+    }
+    if (new Set(alphabet).size !== alphabet.length) {
+      return { ok: false, reason: '중복된 문자가 있습니다' };
+    }
+    const clash = [...alphabet].find((ch) => RESERVED_KEYS.includes(ch));
+    if (clash) {
+      return { ok: false, reason: `'${clash}' 는 이동/명령 키로 예약되어 있습니다` };
+    }
+    return { ok: true };
+  }
+
+  function loadConfig(raw) {
+    const config = {
+      leader: { ...DEFAULT_CONFIG.leader },
+      alphabet: DEFAULT_CONFIG.alphabet,
+      scrollAmount: DEFAULT_CONFIG.scrollAmount,
+    };
+    if (!raw) return config;
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return config;
+    }
+    if (!parsed || typeof parsed !== 'object') return config;
+
+    if (validateAlphabet(parsed.alphabet).ok) config.alphabet = parsed.alphabet;
+    if (Number.isFinite(parsed.scrollAmount) && parsed.scrollAmount > 0) {
+      config.scrollAmount = parsed.scrollAmount;
+    }
+    if (parsed.leader && typeof parsed.leader.key === 'string' && parsed.leader.key) {
+      config.leader = {
+        key: parsed.leader.key,
+        ctrl: !!parsed.leader.ctrl,
+        meta: !!parsed.leader.meta,
+        alt: !!parsed.leader.alt,
+        shift: !!parsed.leader.shift,
+      };
+    }
+    return config;
+  }
+
   // ─── Node test export ────────────────────────────────────────────
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { generateLabels, latinChar, resolveHintChar, passesGeometry, passesStyle, orderByScreenPosition };
+    module.exports = {
+      generateLabels, latinChar, resolveHintChar, passesGeometry, passesStyle, orderByScreenPosition,
+      validateAlphabet, loadConfig, DEFAULT_CONFIG,
+    };
     return; // no DOM in Node; stop before init
   }
 
   // ─── runtime ─────────────────────────────────────────────────────
 
-  const config = {
-    leader: { key: ';', ctrl: true, meta: false, alt: false, shift: false },
-    alphabet: 'asdfgqwertzxcv',
-    scrollAmount: 60,
-  };
+  const STORAGE_KEY = 'claude-vimium:config';
+  let config = loadConfig(localStorage.getItem(STORAGE_KEY));
+
+  function saveConfig(next) {
+    config = next;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  }
+
+  function describeLeader(l) {
+    const parts = [];
+    if (l.ctrl) parts.push('Ctrl');
+    if (l.alt) parts.push('Alt');
+    if (l.shift) parts.push('Shift');
+    if (l.meta) parts.push('Cmd');
+    parts.push(l.key === ' ' ? 'Space' : l.key);
+    return parts.join('+');
+  }
+
+  function openPanel(title, buildBody) {
+    hideHints();
+    const backdrop = document.createElement('div');
+    backdrop.style.cssText = [
+      'position:fixed', 'inset:0', 'z-index:2147483647',
+      'background:rgba(0,0,0,.45)', 'display:flex',
+      'align-items:center', 'justify-content:center',
+      'font:13px/1.5 system-ui,sans-serif',
+    ].join(';');
+
+    const panel = document.createElement('div');
+    panel.style.cssText = [
+      'min-width:340px', 'max-width:90vw', 'max-height:80vh', 'overflow:auto',
+      'padding:20px', 'border-radius:10px', 'background:#fff', 'color:#111',
+      'box-shadow:0 8px 32px rgba(0,0,0,.3)',
+    ].join(';');
+
+    const heading = document.createElement('h2');
+    heading.textContent = title;
+    heading.style.cssText = 'margin:0 0 12px;font-size:15px';
+    panel.appendChild(heading);
+
+    const close = () => {
+      backdrop.remove();
+      document.removeEventListener('keydown', onPanelKey, true);
+    };
+    function onPanelKey(e) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        close();
+      }
+    }
+    document.addEventListener('keydown', onPanelKey, true);
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+
+    buildBody(panel, close);
+    backdrop.appendChild(panel);
+    document.body.appendChild(backdrop);
+    return close;
+  }
+
+  function openSettings() {
+    openPanel('claude-vimium 설정', (panel, close) => {
+      const draft = { ...config, leader: { ...config.leader } };
+
+      const leaderRow = document.createElement('div');
+      leaderRow.style.cssText = 'margin-bottom:12px';
+      const leaderBtn = document.createElement('button');
+      leaderBtn.textContent = describeLeader(draft.leader);
+      leaderBtn.style.cssText = 'padding:4px 10px;font:inherit';
+      leaderBtn.addEventListener('click', () => {
+        leaderBtn.textContent = '키를 누르세요…';
+        const capture = (e) => {
+          if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+          e.preventDefault();
+          e.stopPropagation();
+          draft.leader = {
+            key: e.key, ctrl: e.ctrlKey, meta: e.metaKey,
+            alt: e.altKey, shift: e.shiftKey,
+          };
+          leaderBtn.textContent = describeLeader(draft.leader);
+          document.removeEventListener('keydown', capture, true);
+        };
+        document.addEventListener('keydown', capture, true);
+      });
+      leaderRow.append('리더 키: ', leaderBtn);
+
+      const alphaRow = document.createElement('div');
+      alphaRow.style.cssText = 'margin-bottom:12px';
+      const alphaInput = document.createElement('input');
+      alphaInput.value = draft.alphabet;
+      alphaInput.style.cssText = 'padding:4px 8px;font:inherit;width:220px';
+      alphaRow.append('힌트 문자셋: ', alphaInput);
+
+      const scrollRow = document.createElement('div');
+      scrollRow.style.cssText = 'margin-bottom:12px';
+      const scrollInput = document.createElement('input');
+      scrollInput.type = 'number';
+      scrollInput.value = String(draft.scrollAmount);
+      scrollInput.style.cssText = 'padding:4px 8px;font:inherit;width:80px';
+      scrollRow.append('스크롤 양(px): ', scrollInput);
+
+      const error = document.createElement('div');
+      error.style.cssText = 'color:#c00;min-height:20px;margin-bottom:8px';
+
+      const save = document.createElement('button');
+      save.textContent = '저장';
+      save.style.cssText = 'padding:5px 14px;font:inherit';
+      save.addEventListener('click', () => {
+        const check = validateAlphabet(alphaInput.value);
+        if (!check.ok) {
+          error.textContent = check.reason;
+          return;
+        }
+        const amount = Number(scrollInput.value);
+        if (!Number.isFinite(amount) || amount <= 0) {
+          error.textContent = '스크롤 양은 0보다 큰 숫자여야 합니다';
+          return;
+        }
+        saveConfig({ leader: draft.leader, alphabet: alphaInput.value, scrollAmount: amount });
+        close();
+        toast('설정을 저장했습니다');
+      });
+
+      panel.append(leaderRow, alphaRow, scrollRow, error, save);
+    });
+  }
 
   let toastTimer = null;
   function toast(message) {
@@ -388,7 +566,6 @@
     return true;
   }
 
-  const RESERVED_KEYS = ['h', 'j', 'k', 'l', ',', '?'];
   const FOCUSABLE_INPUT = 'input,textarea,[contenteditable="true"]';
 
   function matchesLeader(e) {
@@ -456,6 +633,11 @@
       }
       hintState.typed = hintState.typed.slice(0, -1);
       filterHints(hintState.typed);
+      return;
+    }
+
+    if (e.key === ',') {
+      openSettings();
       return;
     }
 
