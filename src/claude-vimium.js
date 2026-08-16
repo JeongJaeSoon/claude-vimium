@@ -227,22 +227,24 @@
 
   function showHints() {
     hideHints();
-    // Leave the composer before drawing hints. macOS's Korean IME starts a
-    // composition on the first hint keystroke even though we preventDefault
-    // it, and every keystroke after that arrives with isComposing set — which
-    // the guard drops, so the second character of a label silently lands in
-    // the text box instead. With nothing focused there is nothing to compose
-    // into.
+
+    const targets = collectTargets();
+    if (targets.length === 0) {
+      toast('힌트 대상 없음');
+      return;
+    }
+
+    // Leave the composer only once we know hints will be drawn. Blurring
+    // before this check would strand the user with no focus and no hint mode
+    // to escape from. macOS's Korean IME starts a composition on the first
+    // hint keystroke even though we preventDefault it, and every keystroke
+    // after that arrives with isComposing set — with nothing focused there is
+    // nothing to compose into.
     previousFocus = document.activeElement;
     if (previousFocus && previousFocus !== document.body && typeof previousFocus.blur === 'function') {
       previousFocus.blur();
     } else {
       previousFocus = null;
-    }
-    const targets = collectTargets();
-    if (targets.length === 0) {
-      toast('힌트 대상 없음');
-      return;
     }
 
     const labels = generateLabels(targets.length, config.alphabet);
