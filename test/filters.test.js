@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { passesGeometry, passesStyle } = require('../src/claude-vimium.js');
+const { passesGeometry, passesStyle, orderByScreenPosition } = require('../src/claude-vimium.js');
 
 const VIEWPORT = { width: 1000, height: 800 };
 const rect = (o) => ({
@@ -31,5 +31,42 @@ assert.equal(passesStyle({ display: 'block', visibility: 'visible', opacity: '0'
 
 // near-zero opacity is still invisible in practice
 assert.equal(passesStyle({ display: 'block', visibility: 'visible', opacity: '0.001' }), false);
+
+// orderByScreenPosition: overlap-based row clustering
+const entry = (key, o) => ({ key, rect: rect(o) });
+
+// Reviewer's repro: elements 2px apart vertically should be same row, ordered by left
+const sameRowResult = orderByScreenPosition([
+  entry('far-right', { top: 9, left: 900, bottom: 20 }),
+  entry('near-left', { top: 11, left: 10, bottom: 22 }),
+]);
+assert.equal(sameRowResult[0].key, 'near-left', 'overlapping vertically, ordered by left');
+assert.equal(sameRowResult[1].key, 'far-right');
+
+// Two clearly separate rows order top-first regardless of left values
+const separateRowsResult = orderByScreenPosition([
+  entry('top-row-right', { top: 50, left: 900, bottom: 60 }),
+  entry('bot-row-left', { top: 100, left: 10, bottom: 110 }),
+]);
+assert.equal(separateRowsResult[0].key, 'top-row-right', 'separate rows, ordered top-first');
+assert.equal(separateRowsResult[1].key, 'bot-row-left');
+
+// Three elements on one row in left-to-right order
+const oneRowResult = orderByScreenPosition([
+  entry('c', { top: 50, left: 300, bottom: 60 }),
+  entry('a', { top: 50, left: 100, bottom: 60 }),
+  entry('b', { top: 50, left: 200, bottom: 60 }),
+]);
+assert.equal(oneRowResult[0].key, 'a');
+assert.equal(oneRowResult[1].key, 'b');
+assert.equal(oneRowResult[2].key, 'c');
+
+// Tall element does not absorb rows below: tall opening element then a separate row
+const tallElemResult = orderByScreenPosition([
+  entry('tall', { top: 50, left: 100, bottom: 150 }),
+  entry('separate', { top: 160, left: 200, bottom: 170 }),
+]);
+assert.equal(tallElemResult[0].key, 'tall', 'tall element opens its row');
+assert.equal(tallElemResult[1].key, 'separate', 'separate row starts above tall element bottom');
 
 console.log('filters.test.js OK');

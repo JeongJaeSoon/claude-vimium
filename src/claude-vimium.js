@@ -46,10 +46,30 @@
     return true;
   }
 
+  // Group entries into visual rows, then order each row left to right.
+  // Rows are found by vertical overlap rather than a fixed grid: a grid
+  // splits same-row elements whenever they straddle a bucket boundary.
+  function orderByScreenPosition(entries) {
+    const sorted = [...entries].sort((a, b) => a.rect.top - b.rect.top);
+    const rows = [];
+    for (const entry of sorted) {
+      const row = rows[rows.length - 1];
+      if (row && entry.rect.top < row.bottom) {
+        row.items.push(entry);
+      } else {
+        // The row's band is set by the element that opened it. Widening it
+        // to each new member would let one tall element swallow the rows
+        // below it.
+        rows.push({ items: [entry], bottom: entry.rect.bottom });
+      }
+    }
+    return rows.flatMap((row) => row.items.sort((a, b) => a.rect.left - b.rect.left));
+  }
+
   // ─── Node test export ────────────────────────────────────────────
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { generateLabels, passesGeometry, passesStyle };
+    module.exports = { generateLabels, passesGeometry, passesStyle, orderByScreenPosition };
     return; // no DOM in Node; stop before init
   }
 
@@ -83,16 +103,8 @@
       (el) => !visible.some((other) => other !== el && el.contains(other)),
     );
 
-    // Screen order: top to bottom, then left to right. Rows are bucketed so
-    // that elements on the same visual row are not reordered by sub-pixel
-    // differences in their top coordinate.
-    return innermost.sort((a, b) => {
-      const ra = a.getBoundingClientRect();
-      const rb = b.getBoundingClientRect();
-      const rowA = Math.round(ra.top / 20);
-      const rowB = Math.round(rb.top / 20);
-      return rowA - rowB || ra.left - rb.left;
-    });
+    const entries = innermost.map((el) => ({ el, rect: el.getBoundingClientRect() }));
+    return orderByScreenPosition(entries).map((entry) => entry.el);
   }
 
   function init() {
