@@ -5,25 +5,26 @@
 
   // ─── pure helpers (tested from Node) ─────────────────────────────
 
-  // Which hint character did this keystroke mean?
+  // The latin letter this keystroke lands on, whatever the input method.
   //
-  // Prefer the logical key: on a Dvorak or AZERTY layout the label on screen
-  // matches what `key` reports, and the physical key does not.
+  // Prefer the logical key: on Dvorak or AZERTY the letter printed on the cap
+  // is what `key` reports, and the physical key is not.
   //
-  // Fall back to the physical key only when the logical one is not in the
-  // alphabet at all. That is the Korean/Japanese case: the IME reports a
-  // composed jamo ('ㅁ') for the key printed 'a', so matching on `key` can
-  // never succeed no matter what the user presses.
-  function resolveHintChar(event, alphabet) {
+  // Fall back to the physical key when the logical one is not a latin letter
+  // at all. That is the Korean/Japanese case — the IME reports a composed
+  // jamo ('ㅓ') for the key printed 'j', so matching on `key` can never
+  // succeed no matter what the user presses.
+  function latinChar(event) {
     const logical = typeof event.key === 'string' ? event.key.toLowerCase() : '';
-    if (logical.length === 1 && alphabet.includes(logical)) return logical;
+    if (/^[a-z]$/.test(logical)) return logical;
 
     const physical = /^Key([A-Z])$/.exec(event.code || '');
-    if (physical) {
-      const ch = physical[1].toLowerCase();
-      if (alphabet.includes(ch)) return ch;
-    }
-    return null;
+    return physical ? physical[1].toLowerCase() : null;
+  }
+
+  function resolveHintChar(event, alphabet) {
+    const ch = latinChar(event);
+    return ch && alphabet.includes(ch) ? ch : null;
   }
 
   // Assign the shortest possible labels without any label prefixing another.
@@ -90,7 +91,7 @@
   // ─── Node test export ────────────────────────────────────────────
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { generateLabels, resolveHintChar, passesGeometry, passesStyle, orderByScreenPosition };
+    module.exports = { generateLabels, latinChar, resolveHintChar, passesGeometry, passesStyle, orderByScreenPosition };
     return; // no DOM in Node; stop before init
   }
 
@@ -148,6 +149,7 @@
   let repositionQueued = false;
   let observer = null;
   let previousFocus = null;
+  let scrollerCache = null;
 
   function ensureOverlay() {
     if (overlayEl && overlayEl.isConnected) return overlayEl;
@@ -162,6 +164,27 @@
     ].join(';');
     document.body.appendChild(overlayEl);
     return overlayEl;
+  }
+
+  // Find the scrollable container by measurement, never by class name —
+  // the bundle's class names are hashed and change every app update.
+  function findScroller() {
+    if (scrollerCache && scrollerCache.isConnected) return scrollerCache;
+
+    let best = document.scrollingElement || document.body;
+    let bestArea = 0;
+    for (const el of document.querySelectorAll('div,main,section')) {
+      if (el.scrollHeight - el.clientHeight < 40) continue;
+      if (!/auto|scroll/.test(getComputedStyle(el).overflowY)) continue;
+      const r = el.getBoundingClientRect();
+      const area = r.width * r.height;
+      if (area > bestArea) {
+        bestArea = area;
+        best = el;
+      }
+    }
+    scrollerCache = best;
+    return best;
   }
 
   function makeLabelNode(label) {
@@ -279,6 +302,7 @@
       previousFocus.focus();
     }
     previousFocus = null;
+    scrollerCache = null;
   }
 
   function filterHints(typed) {
@@ -308,6 +332,60 @@
 
     const entries = innermost.map((el) => ({ el, rect: el.getBoundingClientRect() }));
     return orderByScreenPosition(entries).map((entry) => entry.el);
+  }
+
+  function scrollBy(dx, dy) {
+    findScroller().scrollBy({ top: dy, left: dx, behavior: 'instant' });
+    queueReposition();
+  }
+
+  const SCROLL_KEYS = {
+    j: (c) => scrollBy(0, c.scrollAmount),
+    k: (c) => scrollBy(0, -c.scrollAmount),
+    h: (c) => scrollBy(-c.scrollAmount, 0),
+    l: (c) => scrollBy(c.scrollAmount, 0),
+  };
+
+  const ARROW_KEYS = {
+    ArrowDown: (c) => scrollBy(0, c.scrollAmount),
+    ArrowUp: (c) => scrollBy(0, -c.scrollAmount),
+    ArrowLeft: (c) => scrollBy(-c.scrollAmount, 0),
+    ArrowRight: (c) => scrollBy(c.scrollAmount, 0),
+  };
+
+  // Returns true when the key was a scroll command and has been handled.
+  function handleScrollKey(e) {
+    if (e.ctrlKey && !e.metaKey && !e.altKey) {
+      const ch = latinChar(e);
+      if (ch === 'd' || ch === 'u') {
+        const page = findScroller().clientHeight / 2;
+        scrollBy(0, ch === 'd' ? page : -page);
+        return true;
+      }
+      return false;
+    }
+
+    if (e.key === 'Home' || e.key === 'End') {
+      const scroller = findScroller();
+      scroller.scrollTo({ top: e.key === 'Home' ? 0 : scroller.scrollHeight, behavior: 'instant' });
+      queueReposition();
+      return true;
+    }
+
+    const arrow = ARROW_KEYS[e.key];
+    if (arrow) {
+      arrow(config);
+      return true;
+    }
+
+    if (e.ctrlKey || e.metaKey || e.altKey) return false;
+
+    // Letter keys go through latinChar so hjkl work on a Korean layout too,
+    // where e.key would be a jamo.
+    const handler = SCROLL_KEYS[latinChar(e)];
+    if (!handler) return false;
+    handler(config);
+    return true;
   }
 
   const RESERVED_KEYS = ['h', 'j', 'k', 'l', ',', '?'];
@@ -380,6 +458,8 @@
       filterHints(hintState.typed);
       return;
     }
+
+    if (handleScrollKey(e)) return;
 
     const char = resolveHintChar(e, config.alphabet);
     if (!char) return;

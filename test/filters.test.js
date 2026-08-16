@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { passesGeometry, passesStyle, orderByScreenPosition, resolveHintChar } = require('../src/claude-vimium.js');
+const { passesGeometry, passesStyle, orderByScreenPosition, latinChar, resolveHintChar } = require('../src/claude-vimium.js');
 
 const VIEWPORT = { width: 1000, height: 800 };
 const rect = (o) => ({
@@ -97,5 +97,26 @@ assert.equal(resolveHintChar({}, ALPHA), null);
 // A custom alphabet changes what resolves.
 assert.equal(resolveHintChar({ key: 'ㅁ', code: 'KeyA' }, 'xyz'), null);
 assert.equal(resolveHintChar({ key: 'ㅋ', code: 'KeyZ' }, 'xyz'), 'z');
+
+// ── latinChar ────────────────────────────────────────────────────
+
+// Latin keyboard: the logical key is already a letter.
+assert.equal(latinChar({ key: 'j', code: 'KeyJ' }), 'j');
+assert.equal(latinChar({ key: 'K', code: 'KeyK' }), 'k');
+
+// Korean IME: the logical key is a jamo, so the physical key decides.
+assert.equal(latinChar({ key: 'ㅓ', code: 'KeyJ' }), 'j');
+assert.equal(latinChar({ key: 'ㅏ', code: 'KeyK' }), 'k');
+assert.equal(latinChar({ key: 'ㅁ', code: 'KeyA' }), 'a');
+
+// Non-letter keys resolve to nothing, even when they carry a code.
+assert.equal(latinChar({ key: 'ArrowDown', code: 'ArrowDown' }), null);
+assert.equal(latinChar({ key: 'Home', code: 'Home' }), null);
+assert.equal(latinChar({ key: '1', code: 'Digit1' }), null);
+assert.equal(latinChar({ key: ';', code: 'Semicolon' }), null);
+
+// Missing fields.
+assert.equal(latinChar({}), null);
+assert.equal(latinChar({ key: '', code: '' }), null);
 
 console.log('filters.test.js OK');
