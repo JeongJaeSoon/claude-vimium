@@ -194,7 +194,11 @@
     heading.style.cssText = 'margin:0 0 12px;font-size:15px';
     panel.appendChild(heading);
 
+    const cleanups = [];
     const close = () => {
+      // Body-registered teardown runs first: it may hold listeners that
+      // outlive the panel's own DOM (the leader-key capture is one).
+      while (cleanups.length) cleanups.pop()();
       backdrop.remove();
       document.removeEventListener('keydown', onPanelKey, true);
     };
@@ -208,14 +212,14 @@
     document.addEventListener('keydown', onPanelKey, true);
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
 
-    buildBody(panel, close);
+    buildBody(panel, close, (fn) => cleanups.push(fn));
     backdrop.appendChild(panel);
     document.body.appendChild(backdrop);
     return close;
   }
 
   function openSettings() {
-    openPanel('claude-vimium 설정', (panel, close) => {
+    openPanel('claude-vimium 설정', (panel, close, onCleanup) => {
       const draft = { ...config, leader: { ...config.leader } };
 
       const leaderRow = document.createElement('div');
@@ -225,7 +229,10 @@
       leaderBtn.style.cssText = 'padding:4px 10px;font:inherit';
       leaderBtn.addEventListener('click', () => {
         leaderBtn.textContent = '키를 누르세요…';
-        const capture = (e) => {
+
+        const stop = () => document.removeEventListener('keydown', capture, true);
+
+        function capture(e) {
           if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
           e.preventDefault();
           e.stopPropagation();
@@ -234,9 +241,11 @@
             alt: e.altKey, shift: e.shiftKey,
           };
           leaderBtn.textContent = describeLeader(draft.leader);
-          document.removeEventListener('keydown', capture, true);
-        };
+          stop();
+        }
+
         document.addEventListener('keydown', capture, true);
+        onCleanup(stop);
       });
       leaderRow.append('리더 키: ', leaderBtn);
 
