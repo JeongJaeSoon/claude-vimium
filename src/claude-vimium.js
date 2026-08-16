@@ -147,6 +147,7 @@
   let overlayEl = null;
   let repositionQueued = false;
   let observer = null;
+  let previousFocus = null;
 
   function ensureOverlay() {
     if (overlayEl && overlayEl.isConnected) return overlayEl;
@@ -226,6 +227,18 @@
 
   function showHints() {
     hideHints();
+    // Leave the composer before drawing hints. macOS's Korean IME starts a
+    // composition on the first hint keystroke even though we preventDefault
+    // it, and every keystroke after that arrives with isComposing set — which
+    // the guard drops, so the second character of a label silently lands in
+    // the text box instead. With nothing focused there is nothing to compose
+    // into.
+    previousFocus = document.activeElement;
+    if (previousFocus && previousFocus !== document.body && typeof previousFocus.blur === 'function') {
+      previousFocus.blur();
+    } else {
+      previousFocus = null;
+    }
     const targets = collectTargets();
     if (targets.length === 0) {
       toast('힌트 대상 없음');
@@ -260,6 +273,10 @@
       observer.disconnect();
       observer = null;
     }
+    if (previousFocus && previousFocus.isConnected && typeof previousFocus.focus === 'function') {
+      previousFocus.focus();
+    }
+    previousFocus = null;
   }
 
   function filterHints(typed) {
@@ -327,12 +344,11 @@
     // While the user is typing, an IME composition must never be touched —
     // intercepting it corrupts the syllable being assembled.
     //
-    // Inside hint mode the calculus flips: no composition is in progress
-    // (we preventDefault every key, so none can start), but a Korean or
-    // Japanese IME still reports keyCode 229 on keydown. Honoring 229 here
-    // would make hint mode unusable on those layouts, so only a genuine
-    // in-flight composition bails out.
-    if (hintState.active ? e.isComposing : (e.isComposing || e.keyCode === 229)) return;
+    // Hint mode is the opposite case. We blur the focused element on entry,
+    // so nothing can legitimately be composing; if the IME still reports a
+    // composition or keyCode 229, honoring it would swallow the keystroke and
+    // let it fall through to the app. That is the bug this replaces.
+    if (!hintState.active && (e.isComposing || e.keyCode === 229)) return;
 
     if (!hintState.active) {
       if (matchesLeader(e)) {
