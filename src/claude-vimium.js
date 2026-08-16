@@ -259,6 +259,89 @@
     return orderByScreenPosition(entries).map((entry) => entry.el);
   }
 
+  const RESERVED_KEYS = ['h', 'j', 'k', 'l', ',', '?'];
+  const FOCUSABLE_INPUT = 'input,textarea,[contenteditable="true"]';
+
+  function matchesLeader(e) {
+    const l = config.leader;
+    return (
+      e.key === l.key &&
+      e.ctrlKey === !!l.ctrl &&
+      e.metaKey === !!l.meta &&
+      e.altKey === !!l.alt &&
+      e.shiftKey === !!l.shift
+    );
+  }
+
+  function activate(el) {
+    if (!el.isConnected) return;
+    if (el.matches(FOCUSABLE_INPUT)) {
+      el.focus();
+      return;
+    }
+    el.click();
+  }
+
+  function flashNoMatch() {
+    const overlay = ensureOverlay();
+    overlay.animate(
+      [{ transform: 'translateX(0)' }, { transform: 'translateX(3px)' },
+       { transform: 'translateX(-3px)' }, { transform: 'translateX(0)' }],
+      { duration: 120 },
+    );
+  }
+
+  function onKeyDown(e) {
+    // Never touch keys while an IME is composing — intercepting them
+    // corrupts Korean and Japanese input mid-syllable.
+    if (e.isComposing || e.keyCode === 229) return;
+
+    if (!hintState.active) {
+      if (matchesLeader(e)) {
+        e.preventDefault();
+        e.stopPropagation();
+        showHints();
+      }
+      return;
+    }
+
+    // From here on the mode is active and every key belongs to us.
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.key === 'Escape' || matchesLeader(e)) {
+      hideHints();
+      return;
+    }
+
+    if (e.key === 'Backspace') {
+      hintState.typed = hintState.typed.slice(0, -1);
+      filterHints(hintState.typed);
+      return;
+    }
+
+    if (e.key.length !== 1) return;
+
+    const next = hintState.typed + e.key;
+    const matches = hintState.entries.filter((entry) => entry.label.startsWith(next));
+
+    if (matches.length === 0) {
+      flashNoMatch();
+      return;
+    }
+
+    const exact = matches.find((entry) => entry.label === next);
+    if (exact && matches.length === 1) {
+      const { el } = exact;
+      hideHints();
+      activate(el);
+      return;
+    }
+
+    hintState.typed = next;
+    filterHints(next);
+  }
+
   function init() {
     // Re-running this file must not leave a second instance behind.
     if (window.__claudeVimium) window.__claudeVimium.teardown();
@@ -270,10 +353,13 @@
     };
 
     function teardown() {
+      hideHints();
       listeners.forEach((off) => off());
       listeners.length = 0;
       delete window.__claudeVimium;
     }
+
+    on(window, 'keydown', onKeyDown, true);
 
     window.__claudeVimium = { teardown, on, collectTargets, showHints, hideHints, hintState };
     console.log('[claude-vimium] ready');
