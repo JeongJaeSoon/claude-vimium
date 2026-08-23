@@ -102,6 +102,15 @@ assert.equal(resolveHintChar({}, ALPHA), null);
 assert.equal(resolveHintChar({ key: 'ㅁ', code: 'KeyA' }, 'xyz'), null);
 assert.equal(resolveHintChar({ key: 'ㅋ', code: 'KeyZ' }, 'xyz'), 'z');
 
+// Modifier chords belong to the app, not to label matching.
+assert.equal(resolveHintChar({ key: 'v', code: 'KeyV', metaKey: true }, ALPHA), null);
+assert.equal(resolveHintChar({ key: 'c', code: 'KeyC', ctrlKey: true }, ALPHA), null);
+assert.equal(resolveHintChar({ key: 'a', code: 'KeyA', altKey: true }, ALPHA), null);
+// Shift still resolves — it is how capitals are typed.
+assert.equal(resolveHintChar({ key: 'A', code: 'KeyA', shiftKey: true }, ALPHA), 'a');
+// Plain keys are unaffected.
+assert.equal(resolveHintChar({ key: 'v', code: 'KeyV' }, ALPHA), 'v');
+
 // ── latinChar ────────────────────────────────────────────────────
 
 // Latin keyboard: the logical key is already a letter.

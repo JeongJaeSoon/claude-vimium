@@ -33,6 +33,14 @@ assert.equal(validateAlphabet('asfgu').ok, false);
 assert.equal(DEFAULT_CONFIG.alphabet, 'asfgqwertzxcv');
 assert.equal(validateAlphabet(DEFAULT_CONFIG.alphabet).ok, true);
 
+// Only lowercase latin letters can ever be typed — latinChar never returns
+// anything else, so an alphabet outside [a-z] would contain an unreachable
+// label.
+assert.equal(validateAlphabet('ASFG').ok, false);
+assert.equal(validateAlphabet('as1fg').ok, false);
+assert.equal(validateAlphabet('아사').ok, false);
+assert.equal(validateAlphabet('a b').ok, false);
+
 // loadConfig falls back on garbage rather than throwing
 assert.deepEqual(loadConfig(null), DEFAULT_CONFIG);
 assert.deepEqual(loadConfig('not json'), DEFAULT_CONFIG);

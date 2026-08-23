@@ -1,5 +1,5 @@
 // claude-vimium — keyboard-driven UI navigation for Claude Desktop
-// Injected into Claude.app's ion-dist bundle. No dependencies, no build step.
+// Runs from a DevTools snippet; see README.md for why there is no installer.
 (() => {
   'use strict';
 
@@ -23,6 +23,12 @@
   }
 
   function resolveHintChar(event, alphabet) {
+    // A Ctrl/Cmd/Alt chord belongs to the app or the OS, never to a label.
+    // Without this, Cmd+V completes the label "v" and clicks whatever it
+    // points at. Shift is deliberately not excluded: it is how the user
+    // reaches capitals, and latinChar already folds case.
+    if (event.ctrlKey || event.metaKey || event.altKey) return null;
+
     const ch = latinChar(event);
     return ch && alphabet.includes(ch) ? ch : null;
   }
@@ -97,7 +103,10 @@
   };
 
   function validateAlphabet(alphabet) {
-    if (typeof alphabet !== 'string' || alphabet.length < 2) {
+    if (typeof alphabet !== 'string' || !/^[a-z]+$/.test(alphabet)) {
+      return { ok: false, reason: '힌트 문자셋은 영문 소문자만 쓸 수 있습니다' };
+    }
+    if (alphabet.length < 2) {
       return { ok: false, reason: '문자셋은 2글자 이상이어야 합니다' };
     }
     if (new Set(alphabet).size !== alphabet.length) {
@@ -461,6 +470,10 @@
   // Nudge labels that would sit on top of each other. Dense toolbars put
   // several targets within a few pixels; without this the labels are
   // unreadable exactly where hints matter most.
+  //
+  // ponytail: fixed-step nudge, no proximity guarantee. In a dense cluster
+  // a label can end up well away from its element — switch to a leader
+  // line or per-element anchoring if that shows up in practice.
   function placeLabels() {
     const taken = [];
     for (const entry of hintState.entries) {
@@ -554,6 +567,12 @@
 
   function filterHints(typed) {
     for (const entry of hintState.entries) {
+      // The element may have been re-rendered away while hints were up.
+      // Leave it hidden rather than restoring a label that measures 0.
+      if (!entry.el.isConnected) {
+        entry.node.style.display = 'none';
+        continue;
+      }
       const match = entry.label.startsWith(typed);
       entry.node.style.display = match ? '' : 'none';
       if (!match) continue;
@@ -567,6 +586,7 @@
     const viewport = { width: window.innerWidth, height: window.innerHeight };
     const visible = [...document.querySelectorAll(HINT_SELECTOR)].filter((el) => {
       if (el.disabled) return false;
+      if (el.getAttribute('aria-disabled') === 'true') return false;
       if (el.closest('#claude-vimium-overlay')) return false;
       if (!passesGeometry(el.getBoundingClientRect(), viewport)) return false;
       return passesStyle(getComputedStyle(el));
@@ -614,7 +634,7 @@
         scrollHalfPage(ch === 'd' ? 1 : -1);
         return true;
       }
-      return false;
+      // Not d/u — fall through so Ctrl+Home/End/Arrow are still handled below.
     }
 
     if (e.key === 'Home' || e.key === 'End') {
@@ -726,7 +746,9 @@
     if (!char) return;
 
     const next = hintState.typed + char;
-    const matches = hintState.entries.filter((entry) => entry.label.startsWith(next));
+    const matches = hintState.entries.filter(
+      (entry) => entry.el.isConnected && entry.label.startsWith(next),
+    );
 
     if (matches.length === 0) {
       flashNoMatch();
@@ -757,6 +779,11 @@
 
     function teardown() {
       hideHints();
+      clearTimeout(toastTimer);
+      if (overlayEl) {
+        overlayEl.remove();
+        overlayEl = null;
+      }
       listeners.forEach((off) => off());
       listeners.length = 0;
       delete window.__claudeVimium;
