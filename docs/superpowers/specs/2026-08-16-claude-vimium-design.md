@@ -179,6 +179,8 @@ button, a[href], input, textarea, select,
 
 ## 6. 설치 (`install.sh`)
 
+> **이 절은 폐기됐다 (2026-08-23).** 전제가 틀렸다 — Claude Desktop은 원격 `claude.ai`를 렌더링하며 `ion-dist/index.html`은 로드되지 않는다. 주입할 로컬 문서가 없고, 외부 주입 경로는 Hardened Runtime과 CDP 차단으로 전부 막혀 있다. 실제 사용 경로는 DevTools Snippets이며, 자동 로딩은 asar preload 패치가 필요해 별도 로더 프로젝트로 분리했다. 경위는 구현 계획서 부록의 "왜 Task 1·10·11을 폐기했나"에 있다. 아래 내용은 기록으로만 남긴다.
+
 ```
 ./install.sh            # 설치 (LaunchAgent 포함)
 ./install.sh status     # 설치 여부 + 앱 버전 확인
@@ -239,6 +241,8 @@ v2에서 `install.sh`를 호출하는 더블클릭용 `.command` 래퍼를 얹�
 테스트 프레임워크는 도입하지 않는다.
 
 ## 9. 미검증 리스크
+
+> **해소됐고, 예상과 다른 방식이었다 (2026-08-23).** CSP는 문제가 아니었다. 실제 문제는 `ion-dist/index.html`이 애초에 로드되지 않는다는 것이었다 — 앱이 원격 `claude.ai`를 렌더링한다. 아래 서술은 그 사실을 모르던 시점의 기록이다.
 
 **CSP가 `<script src="/claude-vimium.js">`를 허용하는지 확인되지 않았다.** `app.asar`에 host allowlist 기반으로 `script-src` 디렉티브를 구성하는 코드가 있으나, 로컬 앱 스킴에서 로드되는 스크립트가 허용되는지는 실행해봐야 안다.
 

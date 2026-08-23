@@ -48,6 +48,8 @@
 
 ### Task 1: CSP 검증 스파이크
 
+> **폐기됨 (2026-08-23).** 실행해 보니 CSP 문제가 아니었다. Claude Desktop은 원격 `claude.ai`를 렌더링하며 `ion-dist/index.html`은 로드되지 않는다 — 주입할 로컬 문서가 애초에 없었다. 아래 절차는 기록으로만 남긴다. 경위는 부록의 "왜 Task 1·10·11을 폐기했나" 참조.
+
 `<script src>`가 CSP에 막히는지 확인한다. **이 결과가 Task 9의 설치 방식을 결정하므로 가장 먼저 한다.**
 
 **Files:**
@@ -1350,6 +1352,8 @@ git commit -m "feat: add help overlay reflecting effective bindings"
 
 ### Task 10: install.sh
 
+> **폐기됨 (2026-08-23).** `ion-dist/index.html`에 주입한다는 전제가 무너졌다. 원격 렌더링이라 그 파일은 로드되지 않으며, 외부에서 주입하는 경로도 Hardened Runtime과 CDP 차단으로 전부 막혀 있다. 자동 로딩은 asar preload 패치로만 가능하고, 그건 별도 로더 프로젝트가 담당한다. 부록 참조.
+
 설치·상태 확인·제거. Task 1에서 결정한 `INJECTION_MODE`를 반영한다.
 
 **Files:**
@@ -1586,6 +1590,8 @@ git commit -m "feat: add installer with LaunchAgent-based recovery"
 
 ### Task 11: 앱 업데이트 복구 검증
 
+> **폐기됨 (2026-08-23).** Task 10이 폐기되면서 복구할 주입 자체가 없어졌다. 부록 참조.
+
 LaunchAgent가 실제로 재주입하는지 확인한다. 앱 업데이트를 기다릴 수 없으므로 교체를 흉내 낸다.
 
 **Files:**
@@ -1692,6 +1698,33 @@ Task 6까지를 사람이 실제 앱에서 검증한 뒤 나온 요청 세 가�
 모디파이어 없는 맨 `h`를 리더 키로 저장하면, `matchesLeader`가 모든 keydown에서 검사되므로 `h`를 칠 때마다 힌트 모드가 뜬다. 그리고 설정 화면은 힌트 모드를 통해서만 열리므로 **앱 안에서 되돌릴 방법이 없다.** `localStorage`를 직접 지워야 한다.
 
 `validateLeader`가 `Ctrl`·`Alt`·`Cmd` 중 하나를 요구한다. `Shift`는 인정하지 않는다 — 타이핑하는 사람에게 `Shift+a`는 그냥 대문자라, 맨 문자와 똑같이 타이핑을 망가뜨린다. 저장 시점과 `localStorage`를 읽는 시점 양쪽에서 검증하므로, 손으로 편집한 값도 통과하지 못한다.
+
+### 왜 Task 1·10·11을 폐기했나
+
+설치 경로 전체가 틀린 전제 위에 서 있었다. 2026-08-23에 실제로 프로브를 넣고 앱을 재시작해 보고서야 드러났다.
+
+**전제:** `ion-dist/`에 SPA 빌드가 있고 `index.html`에 `<script>`를 얹으면 로드된다. `ion-dist`는 `ElectronAsarIntegrity` 검증 대상이 아니므로 asar을 안 건드려도 된다.
+
+**실제:** Claude Desktop은 **원격 `claude.ai`를 렌더링한다.** DevTools의 실행 컨텍스트 목록에서 top 문서의 origin이 `claude.ai`로 확인됐다. `ion-dist`는 `app://` 프로토콜의 루트로 등록돼 있을 뿐 현재 로드되지 않고, 그 안의 `frame-shell.html`은 `<title>Artifact</title>` — 아티팩트 샌드박스용이다. 주입할 로컬 문서가 애초에 없었다.
+
+프로브가 조용했던 것도 CSP 차단이 아니었다. 차단이었다면 `Refused to load the script` 가 떴어야 하는데 콘솔에는 아무것도 없었다 — 그 파일이 읽히지 않았다는 뜻이다.
+
+**외부 주입도 불가능하다.** 확인한 내용:
+
+| 경로 | 상태 | 근거 |
+|---|---|---|
+| CDP (`--remote-debugging-port`) | 차단 | 앱이 인자를 감지해 `process.exit(1)` |
+| 디버거 attach | 차단 | `get-task-allow` entitlement 없음 |
+| `DYLD_INSERT_LIBRARIES` | 차단 | `allow-dyld-environment-variables` 없음 |
+| 서명 안 된 코드 로드 | 차단 | `disable-library-validation` 없음 |
+
+바이너리는 Hardened Runtime(`flags=0x10000`)으로 서명돼 있고 주입을 허용하는 entitlement가 하나도 없다. Hardened Runtime이 존재하는 목적이 정확히 이것이다.
+
+**남는 결론:** 자동 로딩은 `app.asar`에 preload를 심는 방법으로만 가능하며, 그건 ASAR 무결성 해시 재계산과 `Info.plist` 수정을 수반한다. 잘못하면 앱이 실행되지 않고, 앱 업데이트마다 다시 해야 한다. 확장마다 이 위험한 로직을 중복 구현할 이유가 없으므로 별도 로더 프로젝트에 맡긴다.
+
+그때까지의 사용 경로는 DevTools Snippets다. 스니펫은 DevTools 프로필에 저장되어 앱 재시작에도 남으므로, 재시작 후 세 번의 키 입력이면 된다.
+
+**이 실수에서 배울 것:** 파일이 디스크에 존재한다는 것과 그 파일이 로드된다는 것은 다른 문제다. `location.href` 한 줄이면 첫날에 끝났을 확인을, 번들 구조를 근거로 추론해서 넘어갔다.
 
 ### 얻은 교훈
 
