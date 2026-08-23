@@ -51,7 +51,7 @@ The script is re-runnable: running it again tears the previous instance down fir
 | `?` | help, showing your actual bindings |
 | `Esc` | leave |
 
-Hint characters are left-hand only and navigation is right-hand, so no key ever carries two meanings. That split is enforced by validation, not convention: the settings panel refuses any alphabet containing a reserved key.
+No key ever carries two meanings — `h j k l d u , ?` are reserved for navigation and commands, and the hint alphabet can't contain any of them. That's enforced by validation, not convention: the settings panel refuses any alphabet containing a reserved key.
 
 ## Settings
 
