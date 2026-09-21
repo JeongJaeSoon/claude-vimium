@@ -74,29 +74,29 @@ Neither problem is visible to code review. Both were found by a human pressing k
 
 ## Why there is no installer
 
-Claude Desktop ships a complete local copy of the web app: `Contents/Resources/ion-dist/`, served at `app://localhost` by a protocol handler the app installs at startup. That directory sits *outside* `app.asar`, so the ASAR integrity hash in `Info.plist` does not cover it, and its `index.html` carries no CSP — dropping a `<script>` tag in there would be the whole installer.
+Claude Desktop ships a complete local copy of the web app at `Contents/Resources/ion-dist/`, served at `app://localhost` — and it is not what the window renders, so there is still no on-disk document to add a `<script>` tag to. A probe placed in that `index.html` in August 2026 never ran; the top document's origin was `claude.ai`.
 
-It does not help, because that bundle is not what you are looking at. The app picks its window URL from its deployment mode, and there are exactly two: a first-party one that loads remote `claude.ai`, and a third-party one that loads the bundle. Checked on 2.2553.1 — the only origin in the app's Local Storage is `https://claude.ai`.
+What decides it is the deployment mode, and there are exactly two. The first-party one loads remote `claude.ai`; a third-party one loads the bundle. No ordinary sign-in reaches the second — it is selected by a merged config carrying an `inference`, `selfHosted` or `bootstrap.url` key. Checked on 2.2553.1: the only origin in the app's Local Storage is `https://claude.ai`.
 
-You *can* flip it. The mode is decided by a merged config whose local tier is an ordinary user-writable directory, and third-party mode needs only an `inference`, `selfHosted` or `bootstrap.url` key. Nothing about the bundle then resists a `<script>` tag: its CSP is generated at load time from the HTML on disk, `script-src 'self'` admits a sibling file, and an inline block gets its own `sha256-` added automatically. There is no SRI.
-
-It is still the wrong trade. Third-party mode *is* a third-party deployment: the app answers `/api/bootstrap` and friends locally and sends inference to whatever provider the config names. Your claude.ai account stops working. That is a large price for a keyboard shortcut.
+You can write that config — its local tier is an ordinary user-writable directory — and you should not. Third-party mode *is* a third-party deployment: the app answers `/api/bootstrap` and friends locally and sends inference to whatever provider the config names, so your claude.ai account stops working. That is a large price for a keyboard shortcut. (In that mode the bundle would not resist injection. Its `index.html` carries no `<meta>` policy and the CSP is synthesized at load time, with `script-src 'self'` admitting a sibling file, an automatic `sha256-` for each inline block, and no SRI.)
 
 Injecting from outside the app is closed off too. The binary is signed with Hardened Runtime and carries none of the entitlements that would allow it — no `get-task-allow`, no `disable-library-validation`, no `allow-dyld-environment-variables` — so debugger attach and `DYLD_INSERT_LIBRARIES` are both out. And the app terminates itself on startup if it sees `--remote-debugging-port` or `--remote-debugging-pipe` — now alongside `--disable-web-security`, `--host-rules` and `--ignore-certificate-errors` — which closes the Chrome DevTools Protocol route.
 
-That leaves patching the app bundle's `app.asar` to add a preload script. It works, but it means recomputing the ASAR integrity hash and editing `Info.plist` — get it wrong and the app will not launch — and redoing it after every app update.
+That leaves patching the app bundle's `app.asar` to add a preload script. It works, but it means recomputing the ASAR integrity hash and editing `Info.plist` — get it wrong and the app will not launch — and redoing it after every app update. Any edit under `Contents/Resources/` also breaks the `_CodeSignature/CodeResources` seal. That does not stop the app launching, but it is a second thing a loader has to own.
 
 That belongs in a dedicated tool rather than in each extension. Automatic loading is planned via a separate loader project; until then, the snippet is the supported path.
 
 ## Why not a Claude Code mod
 
-Claude Code's mods — plugins whose behaviour is a TypeScript `register(on, options)` module wrapping engine events — draw on four surfaces from one codebase (`terminal`, `desktop`, `mobile`, `vscode`) and install with a single `claude plugin install`. That is exactly the installer this project lacks, so it is worth saying plainly why it is not the answer.
+Claude Code's mods — plugins whose behaviour is a TypeScript `register(on, options)` module wrapping engine events — draw on four surfaces from one codebase (`terminal`, `desktop`, `mobile`, `vscode`) and install with a single `claude plugin install`. That sounds like exactly the installer this project lacks, so it is worth saying why it is not the answer.
+
+Start with the smaller reason: it does not run yet. Mods sit behind an environment variable *and* a rollout flag that defaults off, and a minimal mod loaded here never had its hook called. Everything below is read from `mods/types/claude-code.d.ts`, not from a mod observed running.
 
 A mod hooks the Claude Code engine, not the window. Its nouns reach sessions, tools, commands, config and the engine's own render sites; none of them reach the app's chrome, which is where the working-directory pill and the model and mode menus live. Hint mode would have nothing to label.
 
 The keyboard is closed too. There is no global key hook. A `Button` may carry a `hotkey`, but it is one lowercase letter or digit and only while that plugin's own site holds the focus; `action` binds to a keybinding the engine already has, and an unknown name is refused, so `Ctrl+;` cannot be registered at all. Only two sites keep a focus ring — a `Pane`, and the band above the prompt.
 
-So a mod is not a port of this extension. It would be a different, smaller thing on a different layer. Checked against `mods/types/claude-code.d.ts` as of September 2026.
+So a mod is not a port of this extension. It would be a different, smaller thing on a different layer. Read against `mods/types/claude-code.d.ts` as of September 2026.
 
 ## Limitations
 

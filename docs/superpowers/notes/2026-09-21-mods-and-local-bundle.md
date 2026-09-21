@@ -5,7 +5,7 @@ Claude Mods 발표를 계기로 두 가지를 확인했다.
 1. Mods로 이 확장을 데스크톱과 CLI 양쪽에서 쓸 수 있는가
 2. 이제 설치 프로그램을 만들 수 있는가
 
-둘 다 답은 "아니오"지만, **README에 적혀 있던 이유가 틀렸다.** 근거를 남겨 다음 사람이 같은 조사를 반복하지 않게 한다.
+둘 다 답은 "아니오"다. 결론은 안 바뀌었고, 바뀐 것은 **README가 대던 이유**다. 근거를 남겨 다음 사람이 같은 조사를 반복하지 않게 한다.
 
 대상: Claude Desktop 2.2553.1, Claude Code CLI 2.1.278 (npm 최신), macOS 26.5.
 
@@ -72,13 +72,19 @@ aX  = () => !Cb() && !qr("hooks") && !hg()
 
 ## 2. 로컬 번들 (ion-dist)
 
-### README가 틀렸던 부분
+### 먼저, 새로 알아낸 것이 아니다
 
-기존 문장:
+**이 프로젝트는 2026-08-23에 이미 여기까지 왔다.** 구현 계획서 부록 "왜 Task 1·10·11을 폐기했나"에 `ion-dist/index.html` 에 프로브를 넣고 앱을 재시작한 기록이 있다. 프로브는 실행되지 않았고, DevTools 실행 컨텍스트에서 top 문서 origin이 `claude.ai` 임을 확인했다. 즉 **실증은 이미 되어 있었다.**
+
+정확하지 않았던 건 README 쪽 요약 문장이다.
 
 > Claude Desktop renders **remote `claude.ai`**, not a local bundle. There is no HTML file on disk to add a `<script>` tag to.
 
-2.2553.1 기준 사실이 아니다. `Contents/Resources/ion-dist/` 에 180MB짜리 완전한 로컬 SPA 번들이 있고, 앱이 시작 시 프로토콜 핸들러로 서빙한다.
+앞 절은 맞고 뒤 절은 틀렸다. HTML은 디스크에 있다 — 로드되지 않을 뿐이다. 계획서는 이걸 정확히 적었는데("`ion-dist`는 `app://` 프로토콜의 루트로 등록돼 있을 뿐 현재 로드되지 않고") README가 줄이면서 "없다"가 됐다.
+
+**이번 조사가 실제로 보탠 것은 하나뿐이다: 왜 로드되지 않는가.** 계획서는 "원격을 렌더한다"는 관찰까지였고, 그 분기를 누가 어떤 조건으로 정하는지는 없었다. 아래가 그 답이다.
+
+`Contents/Resources/ion-dist/` 에 180MB짜리 완전한 로컬 SPA 번들이 있고, 앱이 시작 시 프로토콜 핸들러로 서빙한다.
 
 ```js
 t9n(n.default.join(rgi(), "ion-dist"), c ? () => s.discoveredRendererConfig() ?? c : void 0)
@@ -89,7 +95,9 @@ t9n(n.default.join(rgi(), "ion-dist"), c ? () => s.discoveredRendererConfig() ??
 - preload의 신뢰 오리진 allowlist에 `app://localhost` 가 claude.ai와 나란히 있다
 - **ion-dist는 app.asar 바깥이다.** `Info.plist` 의 ASAR 무결성 해시는 `Resources/app.asar` 단건만 덮으므로, 여기 손대는 데는 해시 재계산도 plist 편집도 필요 없다
 
-즉 README가 "설치가 불가능한 이유"로 든 `asar 해시 재계산` 논거는 이 경로에 대해 무효다.
+계획서는 이 사실("`ion-dist`는 `ElectronAsarIntegrity` 검증 대상이 아니므로 asar을 안 건드려도 된다")을 **틀린 전제 묶음 안에** 넣어뒀는데, 이 하위 주장 자체는 맞다. 틀렸던 건 "그러니 주입하면 로드된다" 쪽이다.
+
+단, ASAR 무결성과 별개로 `Contents/Resources/` 아래를 건드리면 `_CodeSignature/CodeResources` 봉인이 깨진다. 설계 문서가 이미 기록해 둔 대로 실행 자체는 되지만, 로더가 따로 떠안아야 할 항목이다.
 
 ### 그런데 왜 여전히 안 되는가
 
@@ -144,9 +152,10 @@ entitlements: get-task-allow ✗  disable-library-validation ✗  allow-dyld-env
 
 DevTools 스니펫이 여전히 유일한 경로다. 바뀐 것은 **이유**이지 결론이 아니다.
 
-Mods 쪽이 열리려면 전역 key 훅이나 커스텀 chord 등록이 필요하다 ([anthropics/claude-code#91870](https://github.com/anthropics/claude-code/issues/91870)). 그게 생기면 Claude Code 세션 UI 한정으로는 의미가 생기지만, 그때도 이 확장의 이식이 아니라 별개의 더 작은 물건이다.
+Mods 쪽이 열리려면 전역 key 훅이나 커스텀 chord 등록이 필요하다. 그걸 추적하는 이슈는 없다 — [anthropics/claude-code#91870](https://github.com/anthropics/claude-code/issues/91870) 은 Mods 전반 스레드이지 이 기능 요청이 아니다. 그게 생기면 Claude Code 세션 UI 한정으로는 의미가 생기지만, 그때도 이 확장의 이식이 아니라 별개의 더 작은 물건이다.
 
 ## 확인하지 않은 것
 
 - mods 런타임의 실동작 (대화형 세션에서 재확인 필요)
-- 코드서명 리소스 검증 무효화가 런타임에 실제로 영향을 주는지 (`/Applications/Claude.app` 을 수정하지 않았다)
+- `_CodeSignature/CodeResources` 봉인이 깨진 뒤 Gatekeeper 재검증(격리 속성이 붙거나 앱이 업데이트될 때)이 어떻게 되는지. 설계 문서가 "실행 자체는 됨"까지는 기록해 뒀지만 그 이후는 모른다 — `/Applications/Claude.app` 을 수정하지 않았다
+- 3P 모드 전환 자체 (코드 경로로만 확인했고 실제로 넘겨보지 않았다)

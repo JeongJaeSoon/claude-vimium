@@ -1705,6 +1705,8 @@ Task 6까지를 사람이 실제 앱에서 검증한 뒤 나온 요청 세 가�
 
 **전제:** `ion-dist/`에 SPA 빌드가 있고 `index.html`에 `<script>`를 얹으면 로드된다. `ion-dist`는 `ElectronAsarIntegrity` 검증 대상이 아니므로 asar을 안 건드려도 된다.
 
+> **2026-09-21 보강.** 이 전제 중 뒤 문장(`ion-dist`가 `ElectronAsarIntegrity` 대상이 아니다)은 **맞다.** 틀렸던 것은 앞 문장, "얹으면 로드된다" 쪽뿐이다. 무엇이 로드 여부를 정하는지는 [`../notes/2026-09-21-mods-and-local-bundle.md`](../notes/2026-09-21-mods-and-local-bundle.md) 에 있다.
+
 **실제:** Claude Desktop은 **원격 `claude.ai`를 렌더링한다.** DevTools의 실행 컨텍스트 목록에서 top 문서의 origin이 `claude.ai`로 확인됐다. `ion-dist`는 `app://` 프로토콜의 루트로 등록돼 있을 뿐 현재 로드되지 않고, 그 안의 `frame-shell.html`은 `<title>Artifact</title>` — 아티팩트 샌드박스용이다. 주입할 로컬 문서가 애초에 없었다.
 
 프로브가 조용했던 것도 CSP 차단이 아니었다. 차단이었다면 `Refused to load the script` 가 떴어야 하는데 콘솔에는 아무것도 없었다 — 그 파일이 읽히지 않았다는 뜻이다.
