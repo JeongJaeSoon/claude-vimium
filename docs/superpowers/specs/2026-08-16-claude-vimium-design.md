@@ -180,6 +180,7 @@ button, a[href], input, textarea, select,
 ## 6. 설치 (`install.sh`)
 
 > **이 절은 폐기됐다 (2026-08-23).** 전제가 틀렸다 — Claude Desktop은 원격 `claude.ai`를 렌더링하며 `ion-dist/index.html`은 로드되지 않는다. 주입할 로컬 문서가 없고, 외부 주입 경로는 Hardened Runtime과 CDP 차단으로 전부 막혀 있다. 실제 사용 경로는 DevTools Snippets이며, 자동 로딩은 asar preload 패치가 필요해 별도 로더 프로젝트로 분리했다. 경위는 구현 계획서 부록의 "왜 Task 1·10·11을 폐기했나"에 있다. 아래 내용은 기록으로만 남긴다.
+> **2026-09-21 보강.** 이 단락의 "주입할 로컬 문서가 없다"는 부정확하다. 문서는 디스크에 있고 로드되지 않을 뿐이다. 무엇이 그 로드 여부를 정하는지는 [`../notes/2026-09-21-mods-and-local-bundle.md`](../notes/2026-09-21-mods-and-local-bundle.md) 참고. 결론(설치 프로그램 폐기)은 그대로다.
 
 ```
 ./install.sh            # 설치 (LaunchAgent 포함)
