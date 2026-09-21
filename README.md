@@ -76,7 +76,11 @@ Neither problem is visible to code review. Both were found by a human pressing k
 
 Claude Desktop ships a complete local copy of the web app: `Contents/Resources/ion-dist/`, served at `app://localhost` by a protocol handler the app installs at startup. That directory sits *outside* `app.asar`, so the ASAR integrity hash in `Info.plist` does not cover it, and its `index.html` carries no CSP — dropping a `<script>` tag in there would be the whole installer.
 
-It does not help, because that bundle is not what you are looking at. On a normal claude.ai account the window renders **remote `claude.ai`**. Checked on 2.2553.1: the only origin in the app's Local Storage is `https://claude.ai`, and the `app://localhost` IndexedDB directory is months stale. The local bundle is wired up and trusted by the preload, but something other than an ordinary sign-in decides when it is used.
+It does not help, because that bundle is not what you are looking at. The app picks its window URL from its deployment mode, and there are exactly two: a first-party one that loads remote `claude.ai`, and a third-party one that loads the bundle. Checked on 2.2553.1 — the only origin in the app's Local Storage is `https://claude.ai`.
+
+You *can* flip it. The mode is decided by a merged config whose local tier is an ordinary user-writable directory, and third-party mode needs only an `inference`, `selfHosted` or `bootstrap.url` key. Nothing about the bundle then resists a `<script>` tag: its CSP is generated at load time from the HTML on disk, `script-src 'self'` admits a sibling file, and an inline block gets its own `sha256-` added automatically. There is no SRI.
+
+It is still the wrong trade. Third-party mode *is* a third-party deployment: the app answers `/api/bootstrap` and friends locally and sends inference to whatever provider the config names. Your claude.ai account stops working. That is a large price for a keyboard shortcut.
 
 Injecting from outside the app is closed off too. The binary is signed with Hardened Runtime and carries none of the entitlements that would allow it — no `get-task-allow`, no `disable-library-validation`, no `allow-dyld-environment-variables` — so debugger attach and `DYLD_INSERT_LIBRARIES` are both out. And the app terminates itself on startup if it sees `--remote-debugging-port` or `--remote-debugging-pipe` — now alongside `--disable-web-security`, `--host-rules` and `--ignore-certificate-errors` — which closes the Chrome DevTools Protocol route.
 
