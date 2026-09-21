@@ -88,6 +88,16 @@ That leaves patching the app bundle's `app.asar` to add a preload script. It wor
 
 That belongs in a dedicated tool rather than in each extension. Automatic loading is planned via a separate loader project; until then, the snippet is the supported path.
 
+## Why not a Claude Code mod
+
+Claude Code's mods — plugins whose behaviour is a TypeScript `register(on, options)` module wrapping engine events — draw on four surfaces from one codebase (`terminal`, `desktop`, `mobile`, `vscode`) and install with a single `claude plugin install`. That is exactly the installer this project lacks, so it is worth saying plainly why it is not the answer.
+
+A mod hooks the Claude Code engine, not the window. Its nouns reach sessions, tools, commands, config and the engine's own render sites; none of them reach the app's chrome, which is where the working-directory pill and the model and mode menus live. Hint mode would have nothing to label.
+
+The keyboard is closed too. There is no global key hook. A `Button` may carry a `hotkey`, but it is one lowercase letter or digit and only while that plugin's own site holds the focus; `action` binds to a keybinding the engine already has, and an unknown name is refused, so `Ctrl+;` cannot be registered at all. Only two sites keep a focus ring — a `Pane`, and the band above the prompt.
+
+So a mod is not a port of this extension. It would be a different, smaller thing on a different layer. Checked against `mods/types/claude-code.d.ts` as of September 2026.
+
 ## Limitations
 
 - macOS only. Verified on Korean and English layouts; other platforms untested.
@@ -106,7 +116,7 @@ node test/config.test.js
 
 Iterate by pasting `src/claude-vimium.js` into the DevTools console — it tears down the previous instance on each run.
 
-`docs/superpowers/` holds the design spec, the implementation plan, and the manual verification checklists.
+`docs/superpowers/` holds the design spec, the implementation plan, the manual verification checklists, and the notes behind the two sections above.
 
 ## License
 
