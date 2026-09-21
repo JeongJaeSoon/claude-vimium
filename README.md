@@ -74,9 +74,11 @@ Neither problem is visible to code review. Both were found by a human pressing k
 
 ## Why there is no installer
 
-Claude Desktop renders **remote `claude.ai`**, not a local bundle. There is no HTML file on disk to add a `<script>` tag to.
+Claude Desktop ships a complete local copy of the web app: `Contents/Resources/ion-dist/`, served at `app://localhost` by a protocol handler the app installs at startup. That directory sits *outside* `app.asar`, so the ASAR integrity hash in `Info.plist` does not cover it, and its `index.html` carries no CSP — dropping a `<script>` tag in there would be the whole installer.
 
-Injecting from outside the app is closed off too. The binary is signed with Hardened Runtime and carries none of the entitlements that would allow it — no `get-task-allow`, no `disable-library-validation`, no `allow-dyld-environment-variables` — so debugger attach and `DYLD_INSERT_LIBRARIES` are both out. And the app terminates itself on startup if it sees `--remote-debugging-port` or `--remote-debugging-pipe`, which closes the Chrome DevTools Protocol route.
+It does not help, because that bundle is not what you are looking at. On a normal claude.ai account the window renders **remote `claude.ai`**. Checked on 2.2553.1: the only origin in the app's Local Storage is `https://claude.ai`, and the `app://localhost` IndexedDB directory is months stale. The local bundle is wired up and trusted by the preload, but something other than an ordinary sign-in decides when it is used.
+
+Injecting from outside the app is closed off too. The binary is signed with Hardened Runtime and carries none of the entitlements that would allow it — no `get-task-allow`, no `disable-library-validation`, no `allow-dyld-environment-variables` — so debugger attach and `DYLD_INSERT_LIBRARIES` are both out. And the app terminates itself on startup if it sees `--remote-debugging-port` or `--remote-debugging-pipe` — now alongside `--disable-web-security`, `--host-rules` and `--ignore-certificate-errors` — which closes the Chrome DevTools Protocol route.
 
 That leaves patching the app bundle's `app.asar` to add a preload script. It works, but it means recomputing the ASAR integrity hash and editing `Info.plist` — get it wrong and the app will not launch — and redoing it after every app update.
 
