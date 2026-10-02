@@ -1,7 +1,8 @@
 #!/bin/sh
-# Turns Claude Code mods (plugin hooks modules) on for every session that reads
-# ~/.claude/settings.json, the Claude Desktop Code tab included. Mods are early
-# access: without this variable the engine asks a rollout flag that may serve off.
+# Turns Claude Code mods on for every session that reads ~/.claude/settings.json,
+# the Claude Desktop Code tab included. Only Claude Code older than 2.1.287 needs
+# it: mods are on by default from 2.1.287, which ignores the variable, and the
+# docs ask you to remove it then (--off).
 #
 #   sh scripts/enable-mods.sh          # turn on
 #   sh scripts/enable-mods.sh --off    # turn off

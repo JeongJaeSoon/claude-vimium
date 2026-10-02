@@ -1,6 +1,6 @@
 {
   "name": "vimium-hints",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": { "name": "JeongJaeSoon" },
-  "description": "Hint-key palette for the Claude Code session: /vimium, then one letter"
+  "description": "Vimium-style hint mode for the whole Claude Desktop window (Ctrl+;), through a native Accessibility helper. macOS only."
 }
