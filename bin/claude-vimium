@@ -242,7 +242,9 @@ cmd_doctor() {
     check ok "claude CLI: $claude"
     if plugin_installed "$claude"; then check ok "plugin: $PLUGIN"; else check fail "plugin: $PLUGIN not installed (claude-vimium setup)"; fi
     # The documented check: in an empty directory, a loadable engine reports no module.
-    mods=$(cd "$(mktemp -d)" && "$claude" plugin test 2>&1 | tail -n 1)
+    empty=$(mktemp -d)
+    mods=$(cd "$empty" && "$claude" plugin test 2>&1 | tail -n 1)
+    rm -rf "$empty"
     case $mods in
       *"no hooks module"*) check ok "mods: can load" ;;
       *) printf '  warn  %s\n' "mods: cannot load, so /vimium is missing; Ctrl+; still works ($mods)" ;;
