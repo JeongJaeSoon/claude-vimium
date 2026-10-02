@@ -108,15 +108,13 @@ final class HintView: NSView {
   }
 }
 
-final class HintPanel: NSPanel {
-  var onKey: ((NSEvent) -> Void)?
-  override var canBecomeKey: Bool { true }
-  override func keyDown(with event: NSEvent) { onKey?(event) }
-}
-
+// Keys come from an event tap, not the panel: a non-activating panel of a
+// background app does not reliably become key, and the keys then land in
+// Claude, where a typed hint letter goes into the composer.
 final class HintMode {
-  private var panel: HintPanel?
+  private var panel: NSPanel?
   private var view: HintView?
+  private var tap: CFMachPort?
   private var targets: [String: Target] = [:]
   private var window: AXUIElement?
   var isActive: Bool { panel != nil }
@@ -143,7 +141,7 @@ final class HintMode {
     let cocoaFrame = NSRect(
       x: windowRect.minX, y: primaryHeight - windowRect.maxY, width: windowRect.width, height: windowRect.height)
 
-    let panel = self.panel ?? HintPanel(
+    let panel = self.panel ?? NSPanel(
       contentRect: cocoaFrame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
     panel.setFrame(cocoaFrame, display: false)
     panel.level = .statusBar
@@ -152,7 +150,6 @@ final class HintMode {
     panel.hasShadow = false
     panel.ignoresMouseEvents = true
     panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-    panel.onKey = { [weak self] in self?.handle($0) }
 
     let view = self.view ?? HintView(frame: NSRect(origin: .zero, size: cocoaFrame.size))
     view.frame = NSRect(origin: .zero, size: cocoaFrame.size)
@@ -161,10 +158,11 @@ final class HintMode {
       (label, CGPoint(x: target.rect.minX - windowRect.minX, y: target.rect.minY - windowRect.minY))
     }
     panel.contentView = view
-    panel.makeKeyAndOrderFront(nil)
+    panel.orderFrontRegardless()
     view.needsDisplay = true
     self.panel = panel
     self.view = view
+    if tap == nil { startTap() }
   }
 
   func exit() {
@@ -172,12 +170,55 @@ final class HintMode {
     panel = nil
     view = nil
     targets = [:]
-    NSRunningApplication.runningApplications(withBundleIdentifier: claudeBundleID).first?.activate()
+    if let tap {
+      CGEvent.tapEnable(tap: tap, enable: false)
+      CFMachPortInvalidate(tap)
+      self.tap = nil
+    }
   }
 
-  private func handle(_ event: NSEvent) {
+  // An active (filtering) tap needs only the Accessibility grant the helper
+  // already holds; a listen-only one would need Input Monitoring as well.
+  private func startTap() {
+    let mask = CGEventMask(1 << CGEventType.keyDown.rawValue) | CGEventMask(1 << CGEventType.keyUp.rawValue)
+    guard
+      let tap = CGEvent.tapCreate(
+        tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: mask,
+        callback: { _, type, event, info in
+          let mode = Unmanaged<HintMode>.fromOpaque(info!).takeUnretainedValue()
+          return mode.intercept(type, event)
+        }, userInfo: Unmanaged.passUnretained(self).toOpaque())
+    else {
+      FileHandle.standardError.write("ClaudeVimium: event tap refused\n".data(using: .utf8)!)
+      return exit()
+    }
+    CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
+    self.tap = tap
+  }
+
+  private func intercept(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
+    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+      if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
+      return Unmanaged.passUnretained(event)
+    }
+    guard isActive else { return Unmanaged.passUnretained(event) }
+    // Cmd chords (Cmd+Tab, Cmd+W) keep their meaning and end hint mode.
+    if event.flags.contains(.maskCommand) {
+      DispatchQueue.main.async { self.exit() }
+      return Unmanaged.passUnretained(event)
+    }
+    let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+    // Ctrl+; belongs to the Carbon hotkey, which toggles hint mode off.
+    if Int(keyCode) == kVK_ANSI_Semicolon, event.flags.contains(.maskControl) {
+      return Unmanaged.passUnretained(event)
+    }
+    if type == .keyDown { DispatchQueue.main.async { self.handle(keyCode) } }
+    return nil
+  }
+
+  private func handle(_ keyCode: UInt16) {
     guard let view else { return }
-    switch Int(event.keyCode) {
+    switch Int(keyCode) {
     case kVK_Escape: return exit()
     case kVK_Delete:
       if view.typed.isEmpty { return exit() }
@@ -186,7 +227,7 @@ final class HintMode {
       return
     default: break
     }
-    guard let letter = letterForKeyCode[event.keyCode] else { return }
+    guard let letter = letterForKeyCode[keyCode] else { return }
     if let lines = scrollLines[letter], view.typed.isEmpty { return scroll(lines) }
     guard alphabet.contains(letter) else { return }
     let typed = view.typed + String(letter)
