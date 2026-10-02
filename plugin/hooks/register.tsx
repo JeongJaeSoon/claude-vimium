@@ -1,4 +1,4 @@
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
 const PANE = 'vimium'
 // Same default alphabet as src/claude-vimium.js. A Button hotkey is one
@@ -21,18 +21,36 @@ export function lastCodeBlock(text: string): string | undefined {
   return blocks.at(-1)?.[1]
 }
 
+// The helper is a native app: hint mode needs the Accessibility tree and a
+// global key, and no mod surface reaches either.
+async function helper($: EngineInterface, verb: 'start' | 'toggle') {
+  const run = await $.process.run(['/bin/sh', `${$.plugin.root}/helper/launch.sh`, verb], { timeoutMs: 180_000 })
+  return { ok: run.exitCode === 0, message: (run.stderr || run.stdout).trim().split('\n').at(-1) ?? '' }
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'vimium',
+      description: 'Hint mode over the whole Claude Desktop window (also Ctrl+;)',
+      immediate: true,
+    })
+    await $.command.register({
+      name: 'vimium-palette',
       description: 'Hint palette: press one letter to act',
       immediate: true,
     })
-    $.ui.toast('vimium-hints loaded')
+    const started = await helper($, 'start')
+    $.ui.toast(started.ok ? 'vimium-hints: Ctrl+; for hints' : `vimium-hints: helper failed: ${started.message}`)
     return next(e)
   })
 
   on('command.run', { command: 'vimium' }, async $ => {
+    const toggled = await helper($, 'toggle')
+    return toggled.ok ? {} : { text: `vimium-hints: helper failed: ${toggled.message}` }
+  })
+
+  on('command.run', { command: 'vimium-palette' }, async $ => {
     await $.ui.open({ id: PANE, title: 'vimium', focus: true, closeOnEscape: true, rows: ACTIONS.length + 1 })
     return {}
   })
