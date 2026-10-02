@@ -14,7 +14,7 @@ case $VERSION in @*) VERSION=dev ;; esac
 case $SELF in @*) SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")" ;; esac
 
 BUNDLE_ID=io.github.jeongjaesoon.claude-vimium
-MARKETPLACE=claude-vimium
+MARKETPLACE="claude-vimium"
 MARKETPLACE_SOURCE=${CLAUDE_VIMIUM_MARKETPLACE:-JeongJaeSoon/claude-vimium}
 PLUGIN=vimium-hints@claude-vimium
 MODS_KEY=CLAUDE_CODE_ENABLE_FUNCTION_HOOKS
@@ -40,8 +40,11 @@ version_lt() {
 }
 
 desktop_versions() {
-  [ -d "$DESKTOP_CODE" ] || return 0
-  ls "$DESKTOP_CODE" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -t. -k1,1n -k2,2n -k3,3n || true
+  for dir in "$DESKTOP_CODE"/*/; do
+    v=$(basename "$dir")
+    case $v in *[!0-9.]* | "" | *..* | .* | *.) continue ;; esac
+    echo "$v"
+  done | sort -t. -k1,1n -k2,2n -k3,3n
 }
 
 # PATH first; launchd starts the login item with a bare PATH, so fall back to

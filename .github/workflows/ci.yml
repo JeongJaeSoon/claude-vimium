@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: make test
+      - name: Build the universal app
+        run: |
+          make app VERSION=ci
+          lipo -archs build/ClaudeVimium.app/Contents/MacOS/ClaudeVimium | grep -q 'x86_64 arm64'
+          build/ClaudeVimium.app/Contents/MacOS/ClaudeVimium --version | grep -qx 'claude-vimium ci'
+          codesign --verify --strict build/ClaudeVimium.app
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: shellcheck -S warning bin/claude-vimium test/cli.test.sh
+
+  formula:
+    runs-on: macos-latest
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Point the formula at this checkout in a throwaway tap
+        run: |
+          version=$(sed -n 's#.*/tags/v\(.*\)\.tar\.gz".*#\1#p' packaging/claude-vimium.rb)
+          tarball="$RUNNER_TEMP/claude-vimium-$version.tar.gz"
+          git archive --format=tar.gz --prefix="claude-vimium-$version/" -o "$tarball" HEAD
+          brew tap-new --no-git ci/local
+          tap=$(brew --repository ci/local)
+          sed -e "s#^  url .*#  url \"file://$tarball\"#" \
+              -e "s#^  sha256 .*#  sha256 \"$(shasum -a 256 "$tarball" | cut -d' ' -f1)\"#" \
+              -e '/^  head /d' packaging/claude-vimium.rb >"$tap/Formula/claude-vimium.rb"
+      - run: brew audit --strict --formula ci/local/claude-vimium
+      - run: brew install --formula ci/local/claude-vimium
+      - run: brew test ci/local/claude-vimium
+      - name: Doctor on a Mac without Claude
+        run: |
+          claude-vimium doctor | tee doctor.txt || true
+          grep -q 'ok    app: /' doctor.txt
