@@ -119,11 +119,20 @@ final class HintMode {
   private var window: AXUIElement?
   private var observer: AXObserver?
   private var pendingRefresh: DispatchWorkItem?
+  private var pendingEntry: DispatchWorkItem?
   var isActive: Bool { panel != nil }
 
-  func toggle() { isActive ? exit() : enter() }
+  func toggle() {
+    if let pendingEntry {
+      pendingEntry.cancel()
+      self.pendingEntry = nil
+      return
+    }
+    isActive ? exit() : enter()
+  }
 
   func enter() {
+    guard !isActive, pendingEntry == nil else { return }
     guard AXIsProcessTrusted() else {
       log("hint mode: accessibility not granted")
       NSWorkspace.shared.open(accessibilitySettings)
@@ -133,9 +142,12 @@ final class HintMode {
     // The tap swallows every key, so hint mode starts only over a frontmost Claude.
     if !app.isActive {
       app.activate()
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-        if app.isActive, self?.isActive == false { self?.enter() }
+      let work = DispatchWorkItem { [weak self] in
+        self?.pendingEntry = nil
+        if app.isActive { self?.enter() }
       }
+      pendingEntry = work
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
       return
     }
     let root = AXUIElementCreateApplication(app.processIdentifier)
@@ -187,6 +199,8 @@ final class HintMode {
     view = nil
     targets = [:]
     pendingRefresh?.cancel()
+    pendingEntry?.cancel()
+    pendingEntry = nil
     if let observer {
       CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
       self.observer = nil
@@ -248,6 +262,11 @@ final class HintMode {
       return Unmanaged.passUnretained(event)
     }
     guard isActive else { return Unmanaged.passUnretained(event) }
+    // The activation notification can trail the first keys typed into another app.
+    if NSWorkspace.shared.frontmostApplication?.bundleIdentifier != claudeBundleID {
+      DispatchQueue.main.async { self.exit() }
+      return Unmanaged.passUnretained(event)
+    }
     // Cmd chords (Cmd+Tab, Cmd+W) keep their meaning and end hint mode.
     if event.flags.contains(.maskCommand) {
       DispatchQueue.main.async { self.exit() }
