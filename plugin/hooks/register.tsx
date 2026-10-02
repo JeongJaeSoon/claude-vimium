@@ -21,11 +21,15 @@ export function lastCodeBlock(text: string): string | undefined {
   return blocks.at(-1)?.[1]
 }
 
-// The helper is a native app: hint mode needs the Accessibility tree and a
-// global key, and no mod surface reaches either.
-async function helper($: EngineInterface, verb: 'start' | 'toggle') {
-  const run = await $.process.run(['/bin/sh', `${$.plugin.root}/helper/launch.sh`, verb], { timeoutMs: 180_000 })
-  return { ok: run.exitCode === 0, message: (run.stderr || run.stdout).trim().split('\n').at(-1) ?? '' }
+export const INSTALL_HINT =
+  'the claude-vimium app was not found. Install it with: brew install jeongjaesoon/tap/claude-vimium && claude-vimium setup'
+
+// Hint mode lives in the ClaudeVimium app: it needs the Accessibility tree and
+// a global key, and no mod surface reaches either. The URL scheme also starts
+// the app when it is not running.
+async function openApp($: EngineInterface, command: 'start' | 'toggle') {
+  const run = await $.process.run(['/usr/bin/open', '-g', `claude-vimium://${command}`], { timeoutMs: 10_000 })
+  return run.exitCode === 0
 }
 
 export const register: Register = on => {
@@ -40,15 +44,12 @@ export const register: Register = on => {
       description: 'Hint palette: press one letter to act',
       immediate: true,
     })
-    const started = await helper($, 'start')
-    $.ui.toast(started.ok ? 'vimium-hints: Ctrl+; for hints' : `vimium-hints: helper failed: ${started.message}`)
+    if (!(await openApp($, 'start'))) $.ui.toast(`vimium-hints: ${INSTALL_HINT}`)
     return next(e)
   })
 
   on('command.run', { command: 'vimium' }, async $ => {
-    const toggled = await helper($, 'toggle')
-    if (!toggled.ok) return { text: `vimium-hints: helper failed: ${toggled.message}` }
-    return toggled.message === 'started' ? { text: 'vimium-hints: helper started, press Ctrl+; for hints' } : {}
+    return (await openApp($, 'toggle')) ? {} : { text: `vimium-hints: ${INSTALL_HINT}` }
   })
 
   on('command.run', { command: 'vimium-palette' }, async $ => {

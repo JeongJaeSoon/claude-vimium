@@ -1,12 +1,12 @@
 {
-  "name": "vimium-hints",
+  "name": "claude-vimium",
   "owner": { "name": "JeongJaeSoon" },
-  "description": "Keyboard navigation for Claude Desktop, in the spirit of Vimium",
+  "description": "Vimium-style keyboard navigation for Claude Desktop",
   "plugins": [
     {
       "name": "vimium-hints",
       "source": "./plugin",
-      "description": "Vimium-style hint mode for the whole Claude Desktop window (Ctrl+;), through a native Accessibility helper. macOS only."
+      "description": "/vimium for the claude-vimium app: hint mode over the whole Claude Desktop window (Ctrl+;). macOS only."
     }
   ]
 }
