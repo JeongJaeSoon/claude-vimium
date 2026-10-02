@@ -184,6 +184,8 @@ cmd_uninstall() {
   if [ -n "$claude" ]; then
     if plugin_installed "$claude"; then "$claude" plugin uninstall "$PLUGIN"; fi
     if marketplace_added "$claude"; then "$claude" plugin marketplace remove "$MARKETPLACE"; fi
+    # claude plugin uninstall keeps the cached copy; nothing else shares this marketplace's folder.
+    rm -rf "$HOME/.claude/plugins/cache/$MARKETPLACE" "$HOME/.claude/plugins/data/vimium-hints-$MARKETPLACE"
     echo "plugin and marketplace: removed"
   else
     echo "claude CLI not found, so the plugin stays. Remove it later with:"
