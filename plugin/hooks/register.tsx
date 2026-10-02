@@ -22,7 +22,7 @@ export function lastCodeBlock(text: string): string | undefined {
 }
 
 export const INSTALL_HINT =
-  'the claude-vimium app was not found. Install it with: brew install jeongjaesoon/tap/claude-vimium && claude-vimium setup'
+  'the claude-vimium app was not found. Run /vimium-hints:setup, or: brew install jeongjaesoon/tap/claude-vimium && claude-vimium setup'
 
 // Hint mode lives in the ClaudeVimium app: it needs the Accessibility tree and
 // a global key, and no mod surface reaches either. The URL scheme also starts
