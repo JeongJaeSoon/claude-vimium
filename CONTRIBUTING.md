@@ -40,4 +40,5 @@ It edits `~/.claude/settings.json`. Add a case to `test/cli.test.sh` for any new
 ## Releasing (maintainers)
 
 1. Move the `Unreleased` notes under a new version in `CHANGELOG.md`, and set the same version in `plugin/.claude-plugin/plugin.json` and in the `url` of `packaging/claude-vimium.rb`.
-2. Merge, then push a tag `vX.Y.Z` on `main`. The release workflow checks the versions, publishes the GitHub release, and attaches the formula with the tarball's sha256. With the `TAP_TOKEN` secret set, it also commits the formula to `JeongJaeSoon/homebrew-tap`.
+2. Merge, then push a tag `vX.Y.Z` on `main`. The release workflow checks the versions and publishes the GitHub release.
+3. Publish the formula to `JeongJaeSoon/homebrew-tap` with `sh scripts/publish-tap.sh vX.Y.Z`. It fills in the tarball's sha256. With a `TAP_TOKEN` secret set, the release workflow runs it for you.
