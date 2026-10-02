@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: make test
+      - name: Check that every version matches the tag
+        run: |
+          v=${VERSION#v}
+          grep -qF "\"version\": \"$v\"" plugin/.claude-plugin/plugin.json
+          grep -qF "/tags/v$v.tar.gz\"" packaging/claude-vimium.rb
+          awk -v h="## [$v]" 'index($0, h) == 1 {f = 1} END {exit !f}' CHANGELOG.md
+      - name: Publish the release
+        run: |
+          v=${VERSION#v}
+          awk -v h="## [$v]" 'index($0, h) == 1 {f = 1; next} /^## \[/ {f = 0} f' CHANGELOG.md >notes.md
+          gh release create "$VERSION" --verify-tag --title "$VERSION" --notes-file notes.md
+      # Publishing to the public tap is the maintainer's call: this runs only once
+      # a TAP_TOKEN secret with write access to the tap exists, and needs a public
+      # repository, whose tarball Homebrew can download.
+      - name: Commit the formula to the tap
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        if: env.TAP_TOKEN != ''
+        run: GH_TOKEN="$TAP_TOKEN" sh scripts/publish-tap.sh "$VERSION"

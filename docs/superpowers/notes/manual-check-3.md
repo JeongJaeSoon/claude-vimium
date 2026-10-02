@@ -7,7 +7,7 @@
 **코드가 바뀌었으니 스니펫을 먼저 갱신한다.** 이전에 저장해둔 스니펫에는 이번 수정이 없다.
 
 ```bash
-pbcopy < /Users/dev-soon/workspace/project/claude-vimium/src/claude-vimium.js
+pbcopy < src/claude-vimium.js
 ```
 
 1. Claude Desktop에서 `Cmd+Alt+I` → **Sources → Snippets**

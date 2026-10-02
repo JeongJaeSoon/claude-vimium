@@ -1,0 +1,289 @@
+#!/bin/sh
+# Sets up, checks and removes everything around ClaudeVimium.app: the Claude
+# plugin, the mods switch for older Claude Code, and the login item.
+set -eu
+
+VERSION=@VERSION@
+APP=@APP@
+JQ=@JQ@
+SELF=@SELF@
+case $APP in @*) APP="$(cd "$(dirname "$0")/.." && pwd)/build/ClaudeVimium.app" ;; esac
+case $JQ in @*) JQ=jq ;; esac
+case $VERSION in @*) VERSION=dev ;; esac
+# The login item must name a path that survives upgrades: the formula fills in opt_bin.
+case $SELF in @*) SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")" ;; esac
+
+BUNDLE_ID=io.github.jeongjaesoon.claude-vimium
+MARKETPLACE="claude-vimium"
+MARKETPLACE_SOURCE=${CLAUDE_VIMIUM_MARKETPLACE:-JeongJaeSoon/claude-vimium}
+PLUGIN=vimium-hints@claude-vimium
+MODS_KEY=CLAUDE_CODE_ENABLE_FUNCTION_HOOKS
+# Mods load by default from this Claude Code release on, which ignores the switch.
+MODS_DEFAULT_FROM=2.1.287
+SETTINGS=${CLAUDE_VIMIUM_SETTINGS:-$HOME/.claude/settings.json}
+DESKTOP_CODE="$HOME/Library/Application Support/Claude/claude-code"
+STATE_DIR="$HOME/Library/Application Support/claude-vimium"
+LOG_DIR="$HOME/Library/Logs/claude-vimium"
+AGENT="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
+# Present only when this tool, not the user, put the switch in settings.json.
+MODS_MARKER="$STATE_DIR/added-mods-switch"
+
+say() {
+  printf '%s\n' "$*"
+  mkdir -p "$LOG_DIR"
+  printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >>"$LOG_DIR/setup.log"
+}
+
+# 0 when $1 < $2, comparing dotted numeric versions.
+version_lt() {
+  [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -t. -k1,1n -k2,2n -k3,3n | head -n 1)" = "$1" ]
+}
+
+desktop_versions() {
+  for dir in "$DESKTOP_CODE"/*/; do
+    v=$(basename "$dir")
+    case $v in *[!0-9.]* | *..* | .* | *. | *.*.*.*) continue ;; esac
+    case $v in *.*.*) ;; *) continue ;; esac
+    echo "$v"
+  done | sort -t. -k1,1n -k2,2n -k3,3n
+}
+
+# PATH first; launchd starts the login item with a bare PATH, so fall back to
+# the usual install location and then to the copy Claude Desktop bundles.
+find_claude() {
+  if command -v claude >/dev/null 2>&1; then command -v claude; return; fi
+  if [ -x "$HOME/.local/bin/claude" ]; then echo "$HOME/.local/bin/claude"; return; fi
+  newest=$(desktop_versions | tail -n 1)
+  bundled="$DESKTOP_CODE/$newest/claude.app/Contents/MacOS/claude"
+  if [ -n "$newest" ] && [ -x "$bundled" ]; then echo "$bundled"; fi
+}
+
+# Desktop runs its newest bundled copy; an older folder left beside it does not count.
+mods_switch_needed() {
+  newest=$(desktop_versions | tail -n 1)
+  [ -n "$newest" ] && version_lt "$newest" "$MODS_DEFAULT_FROM"
+}
+
+# The switch as it is now: unset, or its JSON value (true, false, "1", ...).
+mods_switch_value() {
+  [ -f "$SETTINGS" ] && "$JQ" -c --arg k "$MODS_KEY" '(.["env"] // {}) | if has($k) then .[$k] else "unset" end' "$SETTINGS" 2>/dev/null || echo '"unset"'
+}
+
+mods_switch_set() {
+  [ -f "$SETTINGS" ] && "$JQ" -e --arg k "$MODS_KEY" '(.["env"] // {}) | has($k)' "$SETTINGS" >/dev/null 2>&1
+}
+
+# Writes through the existing file, so a settings.json that is a symlink stays one.
+edit_settings() {
+  mkdir -p "$(dirname "$SETTINGS")" "$STATE_DIR"
+  [ -f "$SETTINGS" ] || echo '{}' >"$SETTINGS"
+  cp "$SETTINGS" "$STATE_DIR/settings.json.bak"
+  tmp=$(mktemp)
+  "$JQ" --arg k "$MODS_KEY" "$1" "$SETTINGS" >"$tmp"
+  cat "$tmp" >"$SETTINGS"
+  rm -f "$tmp"
+}
+
+add_mods_switch() {
+  edit_settings '.["env"] = ((.["env"] // {}) + {($k): "1"})'
+  : >"$MODS_MARKER"
+}
+
+remove_mods_switch() {
+  edit_settings 'if has("env") then .["env"] |= del(.[$k]) else . end'
+  rm -f "$MODS_MARKER"
+}
+
+# Claude Desktop updates replace its bundled Claude Code, so this runs at every login.
+reconcile_mods() {
+  if mods_switch_needed; then
+    if mods_switch_set; then
+      say "mods switch: already set in $SETTINGS, left as it is"
+    else
+      add_mods_switch
+      say "mods switch: turned on ($MODS_KEY=1 in $SETTINGS) for Claude Code older than $MODS_DEFAULT_FROM"
+    fi
+  elif [ -f "$MODS_MARKER" ] && [ "$(mods_switch_value)" = '"1"' ]; then
+    remove_mods_switch
+    say "mods switch: removed, Claude Desktop's Claude Code is $MODS_DEFAULT_FROM or newer"
+  elif [ -f "$MODS_MARKER" ]; then
+    rm -f "$MODS_MARKER"
+    say "mods switch: changed since setup added it, left as it is"
+  else
+    say "mods switch: not needed"
+  fi
+}
+
+write_login_item() {
+  mkdir -p "$(dirname "$AGENT")"
+  cat >"$AGENT" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$BUNDLE_ID</string>
+  <key>ProgramArguments</key>
+  <array><string>$(printf '%s' "$SELF" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')</string><string>login</string></array>
+  <key>RunAtLoad</key><true/>
+  <key>LimitLoadToSessionType</key><string>Aqua</string>
+</dict>
+</plist>
+PLIST
+  launchctl bootout "gui/$(id -u)/$BUNDLE_ID" 2>/dev/null || true
+  launchctl bootstrap "gui/$(id -u)" "$AGENT"
+}
+
+plugin_installed() {
+  "$1" plugin list 2>/dev/null | grep -q "$PLUGIN"
+}
+
+marketplace_added() {
+  "$1" plugin marketplace list 2>/dev/null | grep -q "❯ $MARKETPLACE\$"
+}
+
+cmd_setup() {
+  [ -d "$APP" ] || { echo "ClaudeVimium.app not found at $APP" >&2; exit 1; }
+  claude=$(find_claude)
+  if [ -z "$claude" ]; then
+    say "claude CLI not found: install Claude Desktop, open its Code tab once, then run claude-vimium setup again"
+  else
+    say "claude CLI: $claude"
+    if marketplace_added "$claude"; then
+      say "marketplace $MARKETPLACE: already added"
+    else
+      "$claude" plugin marketplace add "$MARKETPLACE_SOURCE"
+      say "marketplace $MARKETPLACE: added from $MARKETPLACE_SOURCE"
+    fi
+    if plugin_installed "$claude"; then
+      say "plugin $PLUGIN: already installed"
+    else
+      "$claude" plugin install "$PLUGIN"
+      say "plugin $PLUGIN: installed"
+    fi
+  fi
+  reconcile_mods
+  # Restart, so an upgraded app replaces the one still running.
+  pkill -x ClaudeVimium 2>/dev/null || true
+  write_login_item
+  say "login item: $AGENT"
+  say "ClaudeVimium $VERSION is starting. Allow it in System Settings > Privacy & Security > Accessibility,"
+  say "then press Ctrl+; in Claude Desktop, or run /vimium in a new Code session."
+}
+
+cmd_login() {
+  reconcile_mods >/dev/null
+  open -g "$APP"
+}
+
+cmd_uninstall() {
+  launchctl bootout "gui/$(id -u)/$BUNDLE_ID" 2>/dev/null || true
+  rm -f "$AGENT"
+  pkill -x ClaudeVimium 2>/dev/null || true
+  echo "login item: removed"
+  claude=$(find_claude)
+  if [ -n "$claude" ]; then
+    if plugin_installed "$claude"; then "$claude" plugin uninstall "$PLUGIN"; fi
+    if marketplace_added "$claude"; then "$claude" plugin marketplace remove "$MARKETPLACE"; fi
+    # claude plugin uninstall keeps the cached copy; nothing else shares this marketplace's folder.
+    rm -rf "$HOME/.claude/plugins/cache/$MARKETPLACE" "$HOME/.claude/plugins/data/vimium-hints-$MARKETPLACE"
+    echo "plugin and marketplace: removed"
+  else
+    echo "claude CLI not found, so the plugin stays. Remove it later with:"
+    echo "  claude plugin uninstall $PLUGIN; claude plugin marketplace remove $MARKETPLACE"
+  fi
+  if [ -f "$MODS_MARKER" ] && [ "$(mods_switch_value)" = '"1"' ]; then
+    remove_mods_switch
+    echo "mods switch: removed from $SETTINGS"
+  fi
+  rm -rf "$STATE_DIR" "$LOG_DIR"
+  echo "state and logs: removed"
+  if tccutil reset Accessibility "$BUNDLE_ID" >/dev/null 2>&1; then
+    echo "Accessibility entry: removed"
+  else
+    echo "Remove claude-vimium from System Settings > Privacy & Security > Accessibility yourself."
+  fi
+  echo "Finish with: brew uninstall claude-vimium"
+}
+
+check() {
+  if [ "$1" = ok ]; then printf '  ok    %s\n' "$2"; else printf '  FAIL  %s\n' "$2"; failed=1; fi
+}
+
+cmd_doctor() {
+  failed=0
+  echo "claude-vimium $VERSION"
+  if [ -d "$APP" ]; then check ok "app: $APP"; else check fail "app: not found at $APP"; fi
+  if pgrep -x ClaudeVimium >/dev/null; then check ok "app: running"; else check fail "app: not running (claude-vimium start)"; fi
+  if launchctl print "gui/$(id -u)/$BUNDLE_ID" >/dev/null 2>&1; then
+    check ok "login item: loaded"
+  else
+    check fail "login item: not loaded (claude-vimium setup)"
+  fi
+  trust=$(grep -o 'trusted=[a-z]*' "$LOG_DIR/app.log" 2>/dev/null | tail -n 1 || true)
+  if [ "$trust" = trusted=true ]; then
+    check ok "accessibility: allowed"
+  else
+    check fail "accessibility: not allowed (System Settings > Privacy & Security > Accessibility)"
+  fi
+  if [ "$trust" = trusted=true ] && pgrep -x ClaudeVimium >/dev/null; then
+    before=$(wc -l <"$LOG_DIR/app.log")
+    open -g "claude-vimium://probe"
+    sleep 2
+    probe=$(tail -n +"$((before + 1))" "$LOG_DIR/app.log" | grep 'probe:' | tail -n 1 | sed 's/^[^ ]* probe: //' || true)
+    case $probe in
+      [1-9]*) check ok "hint targets: $probe" ;;
+      *) check fail "hint targets: ${probe:-no answer from the app}" ;;
+    esac
+  fi
+  claude=$(find_claude)
+  if [ -z "$claude" ]; then
+    check fail "claude CLI: not found"
+  else
+    check ok "claude CLI: $claude"
+    if plugin_installed "$claude"; then check ok "plugin: $PLUGIN"; else check fail "plugin: $PLUGIN not installed (claude-vimium setup)"; fi
+    # The documented check: in an empty directory, a loadable engine reports no module.
+    empty=$(mktemp -d)
+    mods=$(cd "$empty" && "$claude" plugin test 2>&1 | tail -n 1)
+    rm -rf "$empty"
+    case $mods in
+      *"no hooks module"*) check ok "mods: can load" ;;
+      *) printf '  warn  %s\n' "mods: cannot load, so /vimium is missing; Ctrl+; still works ($mods)" ;;
+    esac
+  fi
+  versions=$(desktop_versions | tr '\n' ' ')
+  echo "  info  Claude Desktop's Claude Code: ${versions:-none found}"
+  if mods_switch_needed && ! mods_switch_set; then
+    check fail "mods switch: needed for Claude Code older than $MODS_DEFAULT_FROM (claude-vimium setup)"
+  else
+    check ok "mods switch: $(mods_switch_value | tr -d '"')"
+  fi
+  return "$failed"
+}
+
+usage() {
+  cat <<EOF
+claude-vimium $VERSION: Vimium-style keyboard hints for Claude Desktop
+
+  claude-vimium setup       install the Claude plugin, start the app, start it at login
+  claude-vimium doctor      check every piece and say how to fix what is missing
+  claude-vimium mods        turn the mods switch on or off to match Claude Desktop
+  claude-vimium toggle      show or hide hints (same as Ctrl+; in Claude Desktop)
+  claude-vimium start|stop  start or quit the app
+  claude-vimium uninstall   undo everything setup did
+  claude-vimium version
+EOF
+}
+
+case "${1:-}" in
+  setup) cmd_setup ;;
+  login) cmd_login ;;
+  mods) reconcile_mods ;;
+  doctor) cmd_doctor ;;
+  toggle) open -g "claude-vimium://toggle" ;;
+  start) open -g "$APP" ;;
+  stop) pkill -x ClaudeVimium || true ;;
+  uninstall) cmd_uninstall ;;
+  version | --version) echo "claude-vimium $VERSION" ;;
+  help | -h | --help | "") usage ;;
+  *) usage >&2; exit 2 ;;
+esac

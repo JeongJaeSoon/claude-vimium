@@ -5,7 +5,7 @@
 ## 준비
 
 ```bash
-pbcopy < /Users/dev-soon/workspace/project/claude-vimium/src/claude-vimium.js
+pbcopy < src/claude-vimium.js
 ```
 
 Claude Desktop에서 `Cmd+Alt+I` → Console → `Cmd+V` → Enter. **그다음 앱 창을 클릭해 포커스를 옮긴다.** 지우려면 `Cmd+R`.
