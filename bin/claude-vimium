@@ -42,7 +42,8 @@ version_lt() {
 desktop_versions() {
   for dir in "$DESKTOP_CODE"/*/; do
     v=$(basename "$dir")
-    case $v in *[!0-9.]* | "" | *..* | .* | *.) continue ;; esac
+    case $v in *[!0-9.]* | *..* | .* | *. | *.*.*.*) continue ;; esac
+    case $v in *.*.*) ;; *) continue ;; esac
     echo "$v"
   done | sort -t. -k1,1n -k2,2n -k3,3n
 }
@@ -61,6 +62,11 @@ find_claude() {
 mods_switch_needed() {
   newest=$(desktop_versions | tail -n 1)
   [ -n "$newest" ] && version_lt "$newest" "$MODS_DEFAULT_FROM"
+}
+
+# The switch as it is now: unset, or its JSON value (true, false, "1", ...).
+mods_switch_value() {
+  [ -f "$SETTINGS" ] && "$JQ" -c --arg k "$MODS_KEY" '(.["env"] // {}) | if has($k) then .[$k] else "unset" end' "$SETTINGS" 2>/dev/null || echo '"unset"'
 }
 
 mods_switch_set() {
@@ -97,9 +103,12 @@ reconcile_mods() {
       add_mods_switch
       say "mods switch: turned on ($MODS_KEY=1 in $SETTINGS) for Claude Code older than $MODS_DEFAULT_FROM"
     fi
-  elif [ -f "$MODS_MARKER" ]; then
+  elif [ -f "$MODS_MARKER" ] && [ "$(mods_switch_value)" = '"1"' ]; then
     remove_mods_switch
     say "mods switch: removed, Claude Desktop's Claude Code is $MODS_DEFAULT_FROM or newer"
+  elif [ -f "$MODS_MARKER" ]; then
+    rm -f "$MODS_MARKER"
+    say "mods switch: changed since setup added it, left as it is"
   else
     say "mods switch: not needed"
   fi
@@ -178,9 +187,9 @@ cmd_uninstall() {
     echo "plugin and marketplace: removed"
   else
     echo "claude CLI not found, so the plugin stays. Remove it later with:"
-    echo "  claude plugin uninstall $PLUGIN && claude plugin marketplace remove $MARKETPLACE"
+    echo "  claude plugin uninstall $PLUGIN; claude plugin marketplace remove $MARKETPLACE"
   fi
-  if [ -f "$MODS_MARKER" ]; then
+  if [ -f "$MODS_MARKER" ] && [ "$(mods_switch_value)" = '"1"' ]; then
     remove_mods_switch
     echo "mods switch: removed from $SETTINGS"
   fi
@@ -230,13 +239,19 @@ cmd_doctor() {
   else
     check ok "claude CLI: $claude"
     if plugin_installed "$claude"; then check ok "plugin: $PLUGIN"; else check fail "plugin: $PLUGIN not installed (claude-vimium setup)"; fi
+    # The documented check: in an empty directory, a loadable engine reports no module.
+    mods=$(cd "$(mktemp -d)" && "$claude" plugin test 2>&1 | tail -n 1)
+    case $mods in
+      *"no hooks module"*) check ok "mods: can load" ;;
+      *) printf '  warn  %s\n' "mods: cannot load, so /vimium is missing; Ctrl+; still works ($mods)" ;;
+    esac
   fi
   versions=$(desktop_versions | tr '\n' ' ')
   echo "  info  Claude Desktop's Claude Code: ${versions:-none found}"
   if mods_switch_needed && ! mods_switch_set; then
     check fail "mods switch: needed for Claude Code older than $MODS_DEFAULT_FROM (claude-vimium setup)"
   else
-    check ok "mods switch: $(mods_switch_set && echo on || echo off)"
+    check ok "mods switch: $(mods_switch_value | tr -d '"')"
   fi
   return "$failed"
 }

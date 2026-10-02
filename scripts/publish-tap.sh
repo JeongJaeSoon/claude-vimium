@@ -13,7 +13,7 @@ tap=JeongJaeSoon/homebrew-tap
 path=Formula/claude-vimium.rb
 formula="$(cd "$(dirname "$0")/.." && pwd)/packaging/claude-vimium.rb"
 
-grep -q "/tags/$tag.tar.gz\"" "$formula" || { echo "$formula does not point at $tag" >&2; exit 1; }
+grep -qF "/tags/$tag.tar.gz\"" "$formula" || { echo "$formula does not point at $tag" >&2; exit 1; }
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT

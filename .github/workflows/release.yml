@@ -19,9 +19,9 @@ jobs:
       - name: Check that every version matches the tag
         run: |
           v=${VERSION#v}
-          grep -q "\"version\": \"$v\"" plugin/.claude-plugin/plugin.json
-          grep -q "/tags/v$v.tar.gz\"" packaging/claude-vimium.rb
-          grep -q "^## \[$v\]" CHANGELOG.md
+          grep -qF "\"version\": \"$v\"" plugin/.claude-plugin/plugin.json
+          grep -qF "/tags/v$v.tar.gz\"" packaging/claude-vimium.rb
+          grep -qF "## [$v]" CHANGELOG.md
       - name: Publish the release
         run: |
           v=${VERSION#v}

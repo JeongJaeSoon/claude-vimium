@@ -11,7 +11,7 @@ marker="$home/Library/Application Support/claude-vimium/added-mods-switch"
 
 run() { HOME="$home" PATH=/usr/bin:/bin:"$(dirname "$(command -v jq)")" sh "$cli" "$@"; }
 fail() { echo "FAIL: $*"; exit 1; }
-switch() { jq -r '.["env"].CLAUDE_CODE_ENABLE_FUNCTION_HOOKS // "unset"' "$settings"; }
+switch() { jq -r '.["env"] // {} | if has("CLAUDE_CODE_ENABLE_FUNCTION_HOOKS") then .CLAUDE_CODE_ENABLE_FUNCTION_HOOKS | tostring else "unset" end' "$settings"; }
 
 # No Desktop Code tab yet: nothing to switch, settings.json untouched.
 run mods | grep -q "not needed" || fail "no Desktop: expected not needed"
@@ -36,6 +36,25 @@ run mods | grep -q "removed" || fail "new Claude Code: expected removed"
 jq '.["env"].CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = "1"' "$settings" >"$settings.tmp" && mv "$settings.tmp" "$settings"
 run mods | grep -q "not needed" || fail "user's own switch: expected not needed"
 [ "$(switch)" = 1 ] || fail "user's own switch: removed"
+
+# A switch setup added and the user then turned off survives the Desktop update.
+rm -r "$desktop/2.1.290"
+jq 'del(.["env"].CLAUDE_CODE_ENABLE_FUNCTION_HOOKS)' "$settings" >"$settings.tmp" && mv "$settings.tmp" "$settings"
+run mods | grep -q "turned on" || fail "edited switch: expected turned on first"
+jq '.["env"].CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = false' "$settings" >"$settings.tmp" && mv "$settings.tmp" "$settings"
+mkdir -p "$desktop/2.1.290"
+run mods | grep -q "left as it is" || fail "edited switch: expected left as it is"
+[ "$(switch)" = false ] || fail "edited switch: removed"
+[ ! -f "$marker" ] || fail "edited switch: marker kept"
+
+# A folder that is not a three-part version is ignored.
+rm -r "$desktop/2.1.290"
+jq 'del(.["env"].CLAUDE_CODE_ENABLE_FUNCTION_HOOKS)' "$settings" >"$settings.tmp" && mv "$settings.tmp" "$settings"
+mkdir -p "$desktop/2.1.999.0"
+run mods | grep -q "turned on" || fail "four-part folder: counted as newest"
+rm -r "$desktop/2.1.999.0" && rm -f "$marker"
+mkdir -p "$desktop/2.1.290"
+jq '.["env"].CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = "1"' "$settings" >"$settings.tmp" && mv "$settings.tmp" "$settings"
 
 # A switch the user turned off is not turned on.
 rm -r "$desktop/2.1.290"

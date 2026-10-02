@@ -8,10 +8,10 @@ Thanks for helping. Bug reports, compatibility reports after a Claude Desktop up
 make test                       # Node, shell and Swift unit tests
 make app                        # builds build/ClaudeVimium.app
 claude plugin validate plugin
-claude plugin test plugin       # run from an empty directory
+(cd "$(mktemp -d)" && claude plugin test "$OLDPWD/plugin")
 ```
 
-CI runs the same commands, builds the Homebrew formula from your branch, and installs it on a clean macOS runner.
+CI runs `make test`, builds the app, runs shellcheck, and builds, installs and tests the Homebrew formula from your branch on a clean macOS runner. It does not run the two `claude plugin` commands, so run them yourself when you change `plugin/`.
 
 ## Changes to the app
 

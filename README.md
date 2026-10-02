@@ -68,7 +68,7 @@ Letters are read by physical position on a US (ANSI) layout, so labels work with
 
 The menu bar icon (a keyboard) shows hints, shows whether Accessibility is allowed, and quits the app.
 
-In a **Local** session of Desktop's Code tab (or in `claude` in a terminal), the plugin adds:
+`Ctrl+;` and the menu bar need only the app. In a **Local** session of Desktop's Code tab (or in `claude` in a terminal), the plugin adds:
 
 - `/vimium`: the same as `Ctrl+;`. If the app is missing, it says how to install it.
 - `/vimium-palette`: a pane of six actions (copy the last reply, the last code block, the working directory or the session id; show context usage; compact). In Desktop you click them; their letter hotkeys only work in the terminal.
@@ -102,7 +102,7 @@ Run `claude-vimium doctor`, or `/vimium-hints:doctor` in a Code session. Doctor 
 |---|---|
 | `Ctrl+;` shows nothing | Claude must be the frontmost app. If an input method is composing in the prompt box (an underlined character or a candidate list), press `Esc` first. Then run `claude-vimium doctor`. |
 | Accessibility is on but nothing happens | The entry belongs to an older build. Remove it with **−**, then `claude-vimium stop && claude-vimium start` and allow it again. |
-| `/vimium` is unknown | The mod loads only in a session started after setup, and only in **Local** sessions. Start a new one. Still missing: check the mods switch with `claude-vimium doctor`, then [Troubleshoot a mod](https://code.claude.com/docs/en/plugins/mods/troubleshoot). |
+| `/vimium` is unknown | The mod loads only in a session started after setup, and only in **Local** sessions. Start a new one. Still missing: `claude-vimium doctor` says whether mods can load. Anthropic can turn installed mods off remotely, and then `/vimium` is gone until they turn them back on; `Ctrl+;` keeps working, since the app does not depend on the plugin. |
 
 ## Compatibility
 
