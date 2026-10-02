@@ -23,7 +23,7 @@ GitHub에 공개해 누구나 설치할 수 있게 한다.
 | 진입점 | `ion-dist/index.html` (31KB). 인라인 `<script>`가 이미 존재하고 `</body>`는 파일 끝에 정확히 1개 |
 | 웹 루트 | 에셋이 `/assets/v1/...` 절대경로 → `ion-dist`가 루트 |
 | 무결성 검증 | `Info.plist`의 `ElectronAsarIntegrity`는 `Resources/app.asar` **하나만** SHA256 검증. `ion-dist/`는 대상 아님 |
-| 쓰기 권한 | `index.html`은 `dev-soon:staff` 소유, sudo 불필요 |
+| 쓰기 권한 | `index.html`은 로그인 사용자 소유(`<user>:staff`), sudo 불필요 |
 | DevTools | `Cmd+Alt+I`로 열림. 콘솔/Snippets에서 DOM 조작이 실제 동작함을 확인 |
 | CDP 주입 | **차단됨.** `app.asar`에 `hae(process.argv) && !p9() && process.exit(1)` — `--remote-debugging-port` / `--remote-debugging-pipe` 감지 시 서명된 개발자 빌드가 아니면 즉시 종료 |
 | 코드서명 | 리소스 수정 시 `codesign --verify` 실패. `app.asar` 무결성과는 별개라 실행 자체는 됨 |

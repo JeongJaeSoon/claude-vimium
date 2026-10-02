@@ -1,0 +1,14 @@
+name: Feature request
+description: Something hint mode should reach or do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you want to do without the mouse
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How you picture it working

@@ -1,93 +1,60 @@
 # claude-vimium
 
-Keyboard navigation for Claude Desktop, in the spirit of [Vimium](https://vimium.github.io/).
+Keyboard navigation for [Claude Desktop](https://claude.ai/download), in the spirit of [Vimium](https://vimium.github.io/).
 
-Press a leader key and every clickable thing on screen gets a short label. Type the label, that element activates. No mouse.
+Press `Ctrl+;` and every clickable thing in the Claude window gets a short label: the sidebar, the title bar, the model and mode menus, each message's buttons. Type the label and that element is pressed. No mouse.
 
 ```
 Ctrl+;            →  labels appear on every button, link, and input
-type "sf"         →  that element is clicked
+type "sf"         →  that element is pressed
 j / k / d / u     →  scroll
 Esc               →  leave
 ```
 
-## Why this exists
+> claude-vimium is an unofficial community project. It is not affiliated with, endorsed by, or sponsored by Anthropic. "Claude" is a trademark of Anthropic, PBC.
 
-Claude Desktop ships plenty of shortcuts — `Cmd+K`, `Cmd+1…9`, `Cmd+Shift+F` — but anything without a binding needs the mouse: the working-directory pill, the model and mode menus, per-message action buttons. Hint mode covers all of it at once, without inventing a shortcut per control.
+## Why
 
-## Two ways to run it
+Claude Desktop ships plenty of shortcuts (`Cmd+K`, `Cmd+1…9`, `Cmd+Shift+F`), but anything without a binding needs the mouse: the working-directory pill, the model and mode menus, per-message actions. Hint mode covers all of them at once, without a shortcut per control.
 
-| | **Plugin** (recommended) | **DevTools snippet** |
-|---|---|---|
-| How you install it | `claude plugin install`, once | Paste a script into DevTools |
-| After an app restart | Nothing to do | Run the snippet again (three keys) |
-| What gets labels | The whole window, sidebar and title bar included | The web page inside the window |
-| Settings and help panel | No | Yes (`,` and `?`) |
-| Needs | macOS, Claude Code mods, Xcode Command Line Tools, the Accessibility permission | Nothing |
+## Install
 
-The plugin is a [Claude Code mod](https://code.claude.com/docs/en/plugins/mods/overview) that starts a small native macOS helper. [How the plugin works](#how-the-plugin-works) explains why it needs one.
-
-## Plugin
-
-### Before you start
-
-- **macOS** with **Claude Desktop**, used from its **Code** tab in a **Local** session. The helper has to run on your Mac, and only a Local session runs the mod there.
-- **Xcode Command Line Tools**, because the helper is compiled on your Mac the first time it runs. Check with `xcrun --find swiftc`. If that fails, run `xcode-select --install`.
-- **Claude Code mods turned on.** See the next step.
-
-### 1. Make sure mods can load
-
-Mods are [on by default from Claude Code v2.1.287](https://code.claude.com/docs/en/plugins/mods/overview#turn-mods-on-or-off). Claude Desktop runs its own bundled copy of Claude Code, which can be older than the `claude` in your terminal. The folder names here are the versions it has:
+Requires macOS 13 or later and Claude Desktop.
 
 ```bash
-ls ~/Library/Application\ Support/Claude/claude-code/
+brew install jeongjaesoon/tap/claude-vimium && claude-vimium setup
 ```
 
-- **2.1.287 or later:** nothing to do.
-- **Older:** turn the early-access switch on. The script below adds `"CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1"` to `env` in `~/.claude/settings.json`, and writes a backup first. It needs `jq`. Remove the switch again with `--off` once Desktop is on 2.1.287 or later. The docs ask for that, because from that version the variable is ignored.
+Then turn on **claude-vimium** in **System Settings → Privacy & Security → Accessibility**. macOS asks the first time the app starts. That's it: click into Claude and press `Ctrl+;`.
 
-  ```bash
-  git clone https://github.com/JeongJaeSoon/claude-vimium.git
-  sh claude-vimium/scripts/enable-mods.sh
-  ```
+The formula builds the app from source on your Mac, so it needs no Developer ID and Gatekeeper does not stop it. Homebrew already requires the Command Line Tools this build uses.
 
-  If you would rather not run a script, add the key to `~/.claude/settings.json` by hand:
+### What `claude-vimium setup` changes
 
-  ```json
-  { "env": { "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1" } }
-  ```
+Setup is idempotent, logs each step to `~/Library/Logs/claude-vimium/setup.log`, and `claude-vimium uninstall` reverts all of it.
 
-To confirm that mods can load, run `claude plugin test` in an empty directory. `no hooks module to load` means they can. Any other message is explained in [Check whether mods can load](https://code.claude.com/docs/en/plugins/mods/troubleshoot#check-whether-mods-can-load).
+- Installs the **vimium-hints** Claude plugin: `claude plugin marketplace add JeongJaeSoon/claude-vimium` and `claude plugin install vimium-hints@claude-vimium`. It gives Desktop's Code tab the `/vimium` command.
+- **Only if** Claude Desktop bundles a Claude Code older than 2.1.287, adds `"CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1"` to `env` in `~/.claude/settings.json`, after a backup. Older releases load plugin mods only behind this switch; from [2.1.287 they load by default](https://code.claude.com/docs/en/plugins/mods/overview#turn-mods-on-or-off) and ignore it. Setup records that it added the switch, removes it once Desktop is on 2.1.287 or later, and never touches a switch you set yourself.
+- Adds a login item, `~/Library/LaunchAgents/io.github.jeongjaesoon.claude-vimium.plist`. At each login it starts the app and re-checks the switch, because a Claude Desktop update replaces its bundled Claude Code.
 
-### 2. Install
+### Install from Claude instead
+
+If you start from Claude's plugin manager, add the marketplace and install the plugin (in a terminal, or **+ → Plugins → Add plugin** in Desktop's Code tab):
 
 ```bash
 claude plugin marketplace add JeongJaeSoon/claude-vimium
-claude plugin install vimium-hints@vimium-hints
+claude plugin install vimium-hints@claude-vimium
 ```
 
-Desktop's **+ → Plugins → Add plugin** works too, once the marketplace is added. A plugin installed at user scope is shared by the terminal and Desktop's local sessions.
+Then, in a new Code session, run `/vimium-hints:setup`. Claude installs the app for you, with Homebrew if you have it or by building from source if you don't, and runs `claude-vimium setup`. The plugin alone can't do hint mode: [How it works](#how-it-works) explains why it needs the app.
 
-> [!WARNING]
-> A mod runs with your permissions, and this one also builds and starts a program that controls Claude Desktop through the Accessibility API. Read [`plugin/hooks/register.tsx`](plugin/hooks/register.tsx) and [`plugin/helper/ClaudeVimium.swift`](plugin/helper/ClaudeVimium.swift) before you install. `claude plugin validate plugin` lists every event the mod hooks and every call it makes.
-
-### 3. Start a session and allow Accessibility
-
-Open a new **Local** session in Desktop's Code tab. When the session starts, the mod:
-
-1. builds the helper into `~/Library/Application Support/claude-vimium/ClaudeVimium.app` (first run only, a few seconds),
-2. starts it in the background, and
-3. shows the toast `vimium-hints: Ctrl+; for hints`.
-
-macOS then asks you to let **ClaudeVimium** control your computer. Open **System Settings → Privacy & Security → Accessibility** and turn it on.
-
-### 4. Use it
+## Use
 
 Click into the Claude window and press `Ctrl+;`.
 
 | Key | Action |
 |---|---|
-| `Ctrl+;` | Show or hide the labels. Works only while Claude is the frontmost app. |
+| `Ctrl+;` | Show or hide the labels. Claimed only while Claude is the frontmost app, so other apps keep the chord. |
 | `a s f g q w e r t z x c v` | Type a label. The element is pressed, or focused if it's a text field. |
 | `j` / `k` | Scroll down / up a little, then relabel |
 | `d` / `u` | Scroll down / up half a page, then relabel |
@@ -95,178 +62,103 @@ Click into the Claude window and press `Ctrl+;`.
 | `Esc` | Leave |
 | `Cmd` + anything | Leave, and the shortcut still works (`Cmd+Tab`, `Cmd+W`) |
 
-While labels are showing, keys go to the helper and never reach Claude, so nothing leaks into the prompt. Letters are read by physical position on a US (ANSI) layout, so the labels work with a Korean input source on, and with Dvorak or AZERTY you type the key in the QWERTY position.
+While labels show, keys go to claude-vimium and never reach Claude, so nothing leaks into the prompt. Switching to another app ends hint mode. Labels follow the window when it moves or resizes. The window's close, minimize and full-screen buttons get no label, so a typo can't close the window.
 
-Two slash commands come with it:
+Letters are read by physical position on a US (ANSI) layout, so labels work with a Korean or Japanese input source on. With Dvorak or AZERTY, type the key in the QWERTY position.
 
-- `/vimium` shows the labels, the same as `Ctrl+;`. If the helper isn't running, it starts it instead and replies `helper started`; press `Ctrl+;` then.
-- `/vimium-palette` opens a pane of six actions: copy the last reply, the last code block, the working directory, or the session id; show context usage; compact. In Desktop you click them. Their letter hotkeys only work in the terminal.
+The menu bar icon (a keyboard) shows hints, shows whether Accessibility is allowed, and quits the app.
+
+In a **Local** session of Desktop's Code tab (or in `claude` in a terminal), the plugin adds:
+
+- `/vimium`: the same as `Ctrl+;`. If the app is missing, it says how to install it.
+- `/vimium-palette`: a pane of six actions (copy the last reply, the last code block, the working directory or the session id; show context usage; compact). In Desktop you click them; their letter hotkeys only work in the terminal.
+- `/vimium-hints:setup` and `/vimium-hints:doctor`: skills that install the app or find out why hints don't appear.
 
 Desktop's prompt box prints `/vimium isn't a command here.` under either command because it only knows built-in commands. The command still runs.
 
-### Update
+## Update
 
 ```bash
-claude plugin marketplace update vimium-hints
-claude plugin update vimium-hints@vimium-hints
+brew upgrade claude-vimium && claude-vimium setup
 ```
 
-Then start a new session. When an update changes the helper's source, the helper is rebuilt, and **macOS treats the rebuilt helper as a new app**. The old Accessibility entry no longer applies, even though it still shows as on. Remove **ClaudeVimium** with **−** in the Accessibility list, then allow the new one when asked. The helper is signed locally (ad hoc) rather than with a Developer ID, so this happens once per helper change.
+Setup restarts the app so the new version runs. Because the app is signed on your Mac (ad hoc) rather than with a Developer ID, **macOS treats each upgraded build as a new app**: the old Accessibility entry still shows as on but no longer applies. Remove **claude-vimium** with **−** in the Accessibility list, then allow it again when asked. A signed and notarized build that keeps the permission across upgrades is tracked in [#4](https://github.com/JeongJaeSoon/claude-vimium/issues/4).
 
-### Uninstall
+When Claude Desktop updates, nothing needs redoing. The app works on Desktop's window through macOS, the plugin stays installed in `~/.claude`, and the login item re-checks the mods switch.
+
+## Uninstall
 
 ```bash
-pkill -x ClaudeVimium
-claude plugin uninstall vimium-hints@vimium-hints
-claude plugin marketplace remove vimium-hints
-rm -rf ~/Library/Application\ Support/claude-vimium
+claude-vimium uninstall && brew uninstall claude-vimium
 ```
 
-Then remove **ClaudeVimium** from **System Settings → Privacy & Security → Accessibility**. If you turned on the mods switch only for this, undo it with `sh scripts/enable-mods.sh --off`.
+`uninstall` removes the login item, the plugin and its marketplace, the mods switch if setup added it, and the app's state and logs. It also tries `tccutil reset Accessibility` for the app. If that fails, it tells you to remove **claude-vimium** from the Accessibility list yourself.
 
-### Troubleshooting
+## Troubleshooting
 
-| Symptom | Cause and fix |
+Run `claude-vimium doctor`, or `/vimium-hints:doctor` in a Code session. Doctor checks the app, the login item, the Accessibility permission, how many elements hint mode can see in Claude's window, the plugin, and the mods switch. Each failing line names its fix.
+
+| Symptom | Fix |
 |---|---|
-| `Ctrl+;` shows nothing | **Claude must be the frontmost app.** If an input method is composing in the prompt box (an underlined character or a candidate list), press `Esc` to cancel it first. If labels still don't appear, the Accessibility permission doesn't match the current build. Remove and re-add it as in [Update](#update), then restart the helper (next row). |
-| Restart the helper | `pkill -x ClaudeVimium`, then run `/vimium` in a session or start a new one. |
-| Toast says `vimium-hints: helper failed: …` | Usually `swiftc` is missing. Install the Command Line Tools and start a new session. |
-| No toast and no `/vimium` | The mod didn't load. Check [step 1](#1-make-sure-mods-can-load), then [Troubleshoot a mod](https://code.claude.com/docs/en/plugins/mods/troubleshoot). |
-| Labels sit in the wrong place after resizing | Press `Esc` and `Ctrl+;` again. Labels are measured when they appear. |
+| `Ctrl+;` shows nothing | Claude must be the frontmost app. If an input method is composing in the prompt box (an underlined character or a candidate list), press `Esc` first. Then run `claude-vimium doctor`. |
+| Accessibility is on but nothing happens | The entry belongs to an older build. Remove it with **−**, then `claude-vimium stop && claude-vimium start` and allow it again. |
+| `/vimium` is unknown | The mod loads only in a session started after setup, and only in **Local** sessions. Start a new one. Still missing: check the mods switch with `claude-vimium doctor`, then [Troubleshoot a mod](https://code.claude.com/docs/en/plugins/mods/troubleshoot). |
 
-### Good to know
+## Compatibility
 
-- **It also starts from the terminal.** The mod loads in every Claude Code session, so running `claude` in a terminal starts the helper too. `Ctrl+;` is only claimed while Claude Desktop is frontmost, so other apps keep the chord.
-- **The helper outlives Desktop.** It keeps running after you quit Claude and stops at logout. It has no login item. The next session starts it again.
+| | Tested |
+|---|---|
+| macOS | 26.5 (Apple silicon). The app is built universal and targets macOS 13. |
+| Claude Desktop | 2.7032.0, bundling Claude Code 2.1.280 (mods switch on) |
+| Claude Code | 2.1.287 (terminal, mods on by default) |
+| Input sources | US English, Korean |
 
-## How the plugin works
+Hint mode finds elements by their Accessibility roles, not by class names (the app's are hashed and change every release), so a Claude Desktop update rarely affects it. A large UI redesign could. Please [open an issue](https://github.com/JeongJaeSoon/claude-vimium/issues/new/choose) with the versions from `claude-vimium doctor` if labels stop appearing after an update.
+
+## How it works
 
 ```
-Claude Desktop  ──session.start──▶  mod (plugin/hooks/register.tsx)
-                                      │  $.process.run
+Claude Desktop ── Code session ──▶ vimium-hints plugin (a Claude Code mod)
+                                      │ /vimium → open claude-vimium://toggle
                                       ▼
-                                    helper/launch.sh  ──builds once──▶  ClaudeVimium.app
-                                                                        │
-           Ctrl+;  ─────────────────────────────────────────────────────┤ Accessibility API
-                                                                        ▼
-                                                     labels over the whole Claude window
+Ctrl+; ──────────────────────────▶ claude-vimium app (menu bar, starts at login)
+                                      │ macOS Accessibility API
+                                      ▼
+                         labels over the whole Claude window
 ```
 
-A mod alone cannot do hint mode. Mods hook the Claude Code engine, not the window: their render sites are the engine's own (panes, the band above the prompt, tool rows), so the app's sidebar and title bar are out of reach. A mod can't register a global key either. A `Button` hotkey is one letter, and only while that mod's own pane has the focus. In Desktop, clicking a mod's pane doesn't take the keyboard away from the prompt box. A `Client` element runs in an iframe that can't see the page around it.
+A plugin alone can't do hint mode. Claude Code mods hook the Claude Code engine, not the window: they draw only in the engine's own places (panes, the band above the prompt, tool rows), so the app's sidebar and title bar are out of reach. A mod can't register a global key either. A `Button` hotkey is one letter, and only while the mod's own pane has the focus, and in Desktop clicking a pane doesn't take the keyboard from the prompt box.
 
-macOS's Accessibility API can see the window. Asked through `AXManualAccessibility`, Chromium exposes the full tree of Claude's window, web content and chrome alike, and `AXPress` fires the same handlers a click would. So the mod's job is installation and startup, and the helper does the labelling:
+macOS's Accessibility API can see the window. Asked through `AXManualAccessibility`, Chromium exposes the full tree of Claude's window, web content and chrome alike, and `AXPress` fires the same handlers a click would. So the work splits:
 
-- **`plugin/hooks/register.tsx`** registers `/vimium` and `/vimium-palette`, and runs `launch.sh` on `session.start`.
-- **`plugin/helper/launch.sh`** compiles the helper only when its source hash changes, because every rebuild costs the user an Accessibility re-grant. Then it starts the helper, or signals it (`SIGUSR1`) for `/vimium`.
-- **`plugin/helper/ClaudeVimium.swift`** is a menu-bar-less app with these parts:
-  - a Carbon hotkey for `Ctrl+;`, held only while Claude is frontmost
-  - an Accessibility walk that collects clickable roles, clipped to visible scroll areas
-  - a transparent panel that draws the labels
-  - an event tap that takes the keys while labels show
+- **[`app/`](app)** is the menu bar app: a Carbon hotkey for `Ctrl+;`, an Accessibility walk over clickable roles clipped to visible scroll areas, a transparent panel that draws the labels, and an event tap that takes the keys while they show. It needs only the Accessibility permission, not Input Monitoring.
+- **[`plugin/`](plugin)** is the mod. It reaches the app through the `claude-vimium://` URL scheme, which also starts the app if it isn't running.
+- **[`bin/claude-vimium`](bin/claude-vimium)** sets up, checks, and removes everything around them.
 
-The helper is compiled on your machine rather than shipped as a binary. A downloaded unsigned binary would be stopped by Gatekeeper. The cost is the Command Line Tools requirement and the re-grant on helper changes.
+## Without installing anything
 
-## DevTools snippet
-
-No plugin, no permissions: the extension runs from a DevTools snippet, which **persists across app restarts**. You save it once and run it in three keystrokes afterwards. It labels the web page inside the window, not the window's own chrome.
-
-**One-time setup**
-
-1. In Claude Desktop, press `Cmd+Alt+I` to open DevTools
-2. Go to **Sources → Snippets → New snippet**
-3. Paste the contents of [`src/claude-vimium.js`](src/claude-vimium.js) and name it `claude-vimium`
-4. Press `Cmd+Enter` to run it
-
-**After each app restart**
-
-`Cmd+Alt+I` → Snippets → `Cmd+Enter`.
-
-The script is re-runnable: running it again tears the previous instance down first, so you can never end up with duplicate listeners.
-
-### Keys
-
-| key | action |
-|---|---|
-| `Ctrl+;` | enter / leave hint mode (configurable) |
-| `a s f g q w e r t z x c v` | type a hint label |
-| `h` `j` `k` `l` | scroll left / down / up / right |
-| `↑` `↓` `←` `→` | same |
-| `d` / `u` | half page down / up |
-| `Ctrl+d` / `Ctrl+u` | same |
-| `Home` / `End` | top / bottom |
-| `Backspace` | undo one label character — or leave, if nothing is typed |
-| `,` | settings |
-| `?` | help, showing your actual bindings |
-| `Esc` | leave |
-
-No key ever carries two meanings — `h j k l d u , ?` are reserved for navigation and commands, and the hint alphabet can't contain any of them. That's enforced by validation, not convention: the settings panel refuses any alphabet containing a reserved key.
-
-### Settings
-
-Press `,` while hints are showing. You can change the leader key, the hint alphabet, and the scroll step. Settings persist in `localStorage`.
-
-Two rules the settings panel enforces, both of which exist to keep you from locking yourself out:
-
-- **The leader key needs a modifier** (Ctrl, Alt, or Cmd). A bare letter would fire hint mode every time you typed it, and the settings panel is only reachable *through* hint mode — you would have no way back except clearing `localStorage` by hand. Shift does not count: `Shift+a` is just a capital A to anyone typing.
-- **The hint alphabet cannot contain a reserved key** (`h j k l d u , ?`). Those are consumed before label matching, so an element labeled with one could never be clicked.
-
-### Non-latin keyboards
-
-Works on a Korean layout, and the reason is worth knowing if you are building something similar.
-
-On a Korean layout the key printed `a` reports `event.key === 'ㅁ'`, so matching on the logical key can never succeed. This extension prefers the logical key — which keeps Dvorak and AZERTY correct, where the physical key is the wrong answer — and falls back to `event.code` only when the logical key is not a latin letter at all.
-
-There is a second, nastier half. macOS's Korean IME starts composing **even when the keydown is `preventDefault()`ed**, so the first hint keystroke opens a composition and every keystroke after it arrives with `isComposing` set. Guarding on that would swallow them; ignoring it would corrupt real typing. The fix is to remove the thing being composed into: hint mode blurs the focused element on entry and restores focus on exit.
-
-Neither problem is visible to code review. Both were found by a human pressing keys.
-
-### Why the snippet has no installer
-
-Claude Desktop ships a complete local copy of the web app at `Contents/Resources/ion-dist/`, served at `app://localhost` — and it is not what the window renders, so there is still no on-disk document to add a `<script>` tag to. A probe placed in that `index.html` in August 2026 never ran; the top document's origin was `claude.ai`.
-
-What decides it is the deployment mode, and there are exactly two. The first-party one loads remote `claude.ai`; a third-party one loads the bundle. No ordinary sign-in reaches the second — it is selected by a merged config carrying an `inference`, `selfHosted` or `bootstrap.url` key. Checked on 2.2553.1: the only origin in the app's Local Storage is `https://claude.ai`.
-
-You can write that config — its local tier is an ordinary user-writable directory — and you should not. Third-party mode *is* a third-party deployment: the app answers `/api/bootstrap` and friends locally and sends inference to whatever provider the config names, so your claude.ai account stops working. That is a large price for a keyboard shortcut. (In that mode the bundle would not resist injection. Its `index.html` carries no `<meta>` policy and the CSP is synthesized at load time, with `script-src 'self'` admitting a sibling file, an automatic `sha256-` for each inline block, and no SRI.)
-
-Injecting from outside the app is closed off too. The binary is signed with Hardened Runtime and carries none of the entitlements that would allow it — no `get-task-allow`, no `disable-library-validation`, no `allow-dyld-environment-variables` — so debugger attach and `DYLD_INSERT_LIBRARIES` are both out. And the app terminates itself on startup if it sees `--remote-debugging-port` or `--remote-debugging-pipe` — now alongside `--disable-web-security`, `--host-rules` and `--ignore-certificate-errors` — which closes the Chrome DevTools Protocol route.
-
-That leaves patching the app bundle's `app.asar` to add a preload script. It works, but it means recomputing the ASAR integrity hash and editing `Info.plist` — get it wrong and the app will not launch — and redoing it after every app update. Any edit under `Contents/Resources/` also breaks the `_CodeSignature/CodeResources` seal. That does not stop the app launching, but it is a second thing a loader has to own.
-
-The plugin sidesteps all of this by working from outside the page, through the Accessibility API, instead of injecting into it.
+A [DevTools snippet](docs/devtools-snippet.md) gives the same hint mode over the web page inside the window (not its sidebar or title bar), with a settings and help panel. It needs no permissions and nothing installed, but you run it again after each app restart. The page also explains why the snippet can't be installed into Claude Desktop permanently.
 
 ## Limitations
 
-- macOS only. Verified on Korean and English input sources; other platforms untested.
-- The plugin's labels are measured when they appear. Resizing the window or zooming the page while they show doesn't move them.
-- The plugin has no settings or help panel yet; the leader key and alphabet are fixed.
-- The plugin labels the window's close, minimize, and full-screen buttons too, and the close button often gets a one-letter label (`a`). A stray key can close the window. Claude keeps running; reopen the window from the Dock.
-- The DOM layer of the snippet and the helper's drawing have no automated tests. Overlay rendering, key dispatch, and focus handling are verified by hand.
-- Element discovery avoids class names (the app's are hashed and change every release) but still depends on roles and layout, so a large UI redesign could require adjustment.
+- macOS only.
+- The leader key and the hint alphabet are fixed in the app. The DevTools snippet lets you change them.
+- Each upgrade needs the Accessibility permission again, until there is a signed build ([#4](https://github.com/JeongJaeSoon/claude-vimium/issues/4)).
+- The overlay drawing and key handling have no automated tests; they are verified by hand on a real Claude Desktop.
 
 ## Development
 
-**Snippet.** No dependencies, no build step. The extension is one file; pure logic is exported behind a `typeof module` guard so Node can test it.
-
 ```bash
-node test/labels.test.js
-node test/filters.test.js
-node test/config.test.js
+make test                                  # Node, shell and Swift unit tests
+make app                                   # build/ClaudeVimium.app (universal)
+claude plugin validate plugin              # what the mod hooks and calls
+claude plugin test plugin                  # plugin/hooks/register.test.tsx
 ```
 
-Iterate by pasting `src/claude-vimium.js` into the DevTools console — it tears down the previous instance on each run.
+`bin/claude-vimium` run from the repository uses `build/ClaudeVimium.app`, and `CLAUDE_VIMIUM_MARKETPLACE=$PWD bin/claude-vimium setup` installs the plugin from your checkout. Every rebuild is a new app to macOS, so allow Accessibility again after each one.
 
-**Plugin.**
-
-```bash
-claude plugin validate plugin          # what the mod hooks and calls
-claude plugin test plugin              # register.test.tsx
-swiftc -O plugin/helper/ClaudeVimium.swift -o /tmp/ClaudeVimium   # type-check the helper
-```
-
-An installed plugin runs from its cached copy, so edits in this repository don't reach Desktop until you run `claude plugin marketplace update vimium-hints` and `claude plugin update vimium-hints@vimium-hints`. To try a helper change without reinstalling, run `sh plugin/helper/launch.sh` from the repository. That rebuilds the helper, so re-grant Accessibility.
-
-`docs/superpowers/` holds the design spec, the implementation plan, the manual verification checklists, and the notes behind the snippet sections above.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the manual checks a change to the app needs, and [SECURITY.md](SECURITY.md) to report a vulnerability. `docs/superpowers/` holds the original design spec, plan, and research notes.
 
 ## License
 
-MIT
+[MIT](LICENSE)

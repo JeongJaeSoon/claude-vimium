@@ -1,0 +1,39 @@
+name: Bug report
+description: Labels don't appear, a key does the wrong thing, or setup fails
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `claude-vimium doctor`
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: macOS and Claude Desktop versions
+      placeholder: macOS 26.5, Claude Desktop 2.7032.0
+    validations:
+      required: true
+  - type: input
+    id: input-source
+    attributes:
+      label: Keyboard layout and input source
+      placeholder: US, Korean 2-Set
+  - type: dropdown
+    id: route
+    attributes:
+      label: How you installed it
+      options:
+        - Homebrew
+        - Claude plugin, then /vimium-hints:setup
+        - Built from source
+        - DevTools snippet
