@@ -11,8 +11,10 @@ test('every action gets a one-letter hint and copies on press', async ($, on) =>
   const copied: string[] = []
   on('ui.copy', async (_$, e) => {
     copied.push(e.text)
-    return { isCopied: true }
+    return { value: { isCopied: true } }
   })
+  on('ui.close', async () => ({ value: undefined }))
+  on('session.cwd', async () => ({ value: '/work' }))
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({
@@ -33,5 +35,5 @@ test('every action gets a one-letter hint and copies on press', async ($, on) =>
     await ui.press({ key: 'hint:f' })
     await ui.unmount()
   }
-  expect(copied).toHaveLength(2)
+  expect(copied).toEqual(['/work', '/work'])
 })
