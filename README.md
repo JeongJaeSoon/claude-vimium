@@ -31,7 +31,7 @@ The plugin is a [Claude Code mod](https://code.claude.com/docs/en/plugins/mods/o
 
 ### Before you start
 
-- **macOS** with **Claude Desktop**, used from its **Code** tab in a **Local** session. Cloud and WSL sessions don't load your plugins.
+- **macOS** with **Claude Desktop**, used from its **Code** tab in a **Local** session. The helper has to run on your Mac, and only a Local session runs the mod there.
 - **Xcode Command Line Tools**, because the helper is compiled on your Mac the first time it runs. Check with `xcrun --find swiftc`. If that fails, run `xcode-select --install`.
 - **Claude Code mods turned on.** See the next step.
 
@@ -99,7 +99,7 @@ While labels are showing, keys go to the helper and never reach Claude, so nothi
 
 Two slash commands come with it:
 
-- `/vimium` shows the labels, the same as `Ctrl+;`.
+- `/vimium` shows the labels, the same as `Ctrl+;`. If the helper isn't running, it starts it instead and replies `helper started`; press `Ctrl+;` then.
 - `/vimium-palette` opens a pane of six actions: copy the last reply, the last code block, the working directory, or the session id; show context usage; compact. In Desktop you click them. Their letter hotkeys only work in the terminal.
 
 Desktop's prompt box prints `/vimium isn't a command here.` under either command because it only knows built-in commands. The command still runs.
@@ -129,7 +129,7 @@ Then remove **ClaudeVimium** from **System Settings → Privacy & Security → A
 | Symptom | Cause and fix |
 |---|---|
 | `Ctrl+;` shows nothing | **Claude must be the frontmost app.** If an input method is composing in the prompt box (an underlined character or a candidate list), press `Esc` to cancel it first. If labels still don't appear, the Accessibility permission doesn't match the current build. Remove and re-add it as in [Update](#update), then restart the helper (next row). |
-| Restart the helper | `pkill -x ClaudeVimium`, then run `/vimium` in a session. It starts the helper when it isn't running. |
+| Restart the helper | `pkill -x ClaudeVimium`, then run `/vimium` in a session or start a new one. |
 | Toast says `vimium-hints: helper failed: …` | Usually `swiftc` is missing. Install the Command Line Tools and start a new session. |
 | No toast and no `/vimium` | The mod didn't load. Check [step 1](#1-make-sure-mods-can-load), then [Troubleshoot a mod](https://code.claude.com/docs/en/plugins/mods/troubleshoot). |
 | Labels sit in the wrong place after resizing | Press `Esc` and `Ctrl+;` again. Labels are measured when they appear. |
@@ -239,6 +239,7 @@ The plugin sidesteps all of this by working from outside the page, through the A
 - macOS only. Verified on Korean and English input sources; other platforms untested.
 - The plugin's labels are measured when they appear. Resizing the window or zooming the page while they show doesn't move them.
 - The plugin has no settings or help panel yet; the leader key and alphabet are fixed.
+- The plugin labels the window's close, minimize, and full-screen buttons too, and the close button often gets a one-letter label (`a`). A stray key can close the window. Claude keeps running; reopen the window from the Dock.
 - The DOM layer of the snippet and the helper's drawing have no automated tests. Overlay rendering, key dispatch, and focus handling are verified by hand.
 - Element discovery avoids class names (the app's are hashed and change every release) but still depends on roles and layout, so a large UI redesign could require adjustment.
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Builds ClaudeVimium.app when its source changed, then runs it.
 #   launch.sh          build if stale, start if not running
-#   launch.sh toggle   also enter (or leave) hint mode
+#   launch.sh toggle   enter (or leave) hint mode, once the helper is running
 #   launch.sh stop     quit the helper
 set -eu
 
@@ -42,7 +42,10 @@ fi
 
 if ! pgrep -x ClaudeVimium >/dev/null; then
   open -g "$app"
-  sleep 1
+  # SIGUSR1 kills a helper that has not installed its handler yet, so a
+  # helper started just now is left alone: Ctrl+; then shows the labels.
+  echo "started"
+  exit 0
 fi
 
 if [ "${1:-start}" = toggle ]; then

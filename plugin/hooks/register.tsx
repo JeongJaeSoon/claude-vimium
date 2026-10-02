@@ -47,7 +47,8 @@ export const register: Register = on => {
 
   on('command.run', { command: 'vimium' }, async $ => {
     const toggled = await helper($, 'toggle')
-    return toggled.ok ? {} : { text: `vimium-hints: helper failed: ${toggled.message}` }
+    if (!toggled.ok) return { text: `vimium-hints: helper failed: ${toggled.message}` }
+    return toggled.message === 'started' ? { text: 'vimium-hints: helper started, press Ctrl+; for hints' } : {}
   })
 
   on('command.run', { command: 'vimium-palette' }, async $ => {
