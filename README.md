@@ -90,13 +90,30 @@ That belongs in a dedicated tool rather than in each extension. Automatic loadin
 
 Claude Code's mods — plugins whose behaviour is a TypeScript `register(on, options)` module wrapping engine events — draw on four surfaces from one codebase (`terminal`, `desktop`, `mobile`, `vscode`) and install with a single `claude plugin install`. That sounds like exactly the installer this project lacks, so it is worth saying why it is not the answer.
 
-Start with the smaller reason: it does not run yet. Mods sit behind an environment variable *and* a rollout flag that defaults off, and a minimal mod loaded here never had its hook called. Everything below is read from `mods/types/claude-code.d.ts`, not from a mod observed running.
-
 A mod hooks the Claude Code engine, not the window. Its nouns reach sessions, tools, commands, config and the engine's own render sites; none of them reach the app's chrome, which is where the working-directory pill and the model and mode menus live. Hint mode would have nothing to label.
 
 The keyboard is closed too. There is no global key hook. A `Button` may carry a `hotkey`, but it is one lowercase letter or digit and only while that plugin's own site holds the focus; `action` binds to a keybinding the engine already has, and an unknown name is refused, so `Ctrl+;` cannot be registered at all. Only two sites keep a focus ring — a `Pane`, and the band above the prompt.
 
-So a mod is not a port of this extension. It would be a different, smaller thing on a different layer. Read against `mods/types/claude-code.d.ts` as of September 2026.
+So a mod is not a port of this extension. It is a different, smaller thing on a different layer — and `plugin/` is that thing.
+
+### The smaller thing: `vimium-hints`
+
+`/vimium` in a Claude Code session opens a pane of six actions, each labeled with a letter from the hint alphabet: copy the last reply, the last code block, the working directory or the session id; show context usage; compact.
+
+```bash
+claude plugin marketplace add <path to this repo>
+claude plugin install vimium-hints@vimium-hints
+sh scripts/enable-mods.sh     # --off to undo
+```
+
+The last line is not optional on every account. Mods are early access: the engine loads a plugin's hooks module only when `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` is set or the rollout flag `tengu_plugin_hooks_modules` serves on, and the flag defaults off. The script sets the variable in `~/.claude/settings.json`, which the Desktop Code tab reads too.
+
+Checked in Claude Desktop 2.16120.0 (Claude Code 2.1.284), October 2026:
+
+- Without the variable, `/vimium` answers "isn't a command here" — the plugin is loaded, its module is not.
+- With it, `/vimium` opens the pane beside the transcript, and clicking an action runs it: the clipboard held the working directory and the toast read `vimium-hints: Copied working directory`.
+- The hint letters do not work there. Clicking the pane does not give it the keyboard, Tab stays inside the composer, and the letter lands in the prompt — as `ㄹ` on a Korean layout. In the Desktop pane, the letters are labels and nothing more.
+- Desktop's own composer still prints "/vimium isn't a command here." under the prompt, because it only knows built-in commands; the engine runs the command anyway.
 
 ## Limitations
 
