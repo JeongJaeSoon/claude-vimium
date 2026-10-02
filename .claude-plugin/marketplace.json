@@ -1,0 +1,11 @@
+{
+  "name": "vimium-hints",
+  "owner": { "name": "JeongJaeSoon" },
+  "plugins": [
+    {
+      "name": "vimium-hints",
+      "source": "./plugin",
+      "description": "Hint-key palette for the Claude Code session: /vimium, then one letter"
+    }
+  ]
+}
