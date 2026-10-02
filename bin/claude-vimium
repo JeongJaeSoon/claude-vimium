@@ -209,6 +209,15 @@ cmd_doctor() {
   else
     check fail "accessibility: not allowed (System Settings > Privacy & Security > Accessibility)"
   fi
+  if [ "$trust" = trusted=true ] && pgrep -x ClaudeVimium >/dev/null; then
+    open -g "claude-vimium://probe"
+    sleep 2
+    probe=$(grep 'probe:' "$LOG_DIR/app.log" 2>/dev/null | tail -n 1 | sed 's/^[^ ]* probe: //')
+    case $probe in
+      [1-9]*) check ok "hint targets: $probe" ;;
+      *) check fail "hint targets: ${probe:-no answer from the app}" ;;
+    esac
+  fi
   claude=$(find_claude)
   if [ -z "$claude" ]; then
     check fail "claude CLI: not found"

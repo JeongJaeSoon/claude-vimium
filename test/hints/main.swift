@@ -26,6 +26,7 @@ check(urlCommand("claude-vimium://toggle") == .toggle, "toggle")
 check(urlCommand("CLAUDE-VIMIUM://Toggle/") == .toggle, "case and trailing slash")
 check(urlCommand("claude-vimium://") == .start, "bare scheme starts")
 check(urlCommand("claude-vimium://start") == .start, "start")
+check(urlCommand("claude-vimium://probe") == .probe, "probe")
 check(urlCommand("claude-vimium://rm-rf") == nil, "unknown command ignored")
 check(urlCommand("https://toggle") == nil, "other scheme ignored")
 

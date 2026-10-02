@@ -398,8 +398,28 @@ final class URLHandler: NSObject {
     guard let url = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
       let command = urlCommand(url)
     else { return }
-    if command == .toggle { hintMode.toggle() }
+    switch command {
+    case .start: break
+    case .toggle: hintMode.toggle()
+    case .probe: probe()
+    }
   }
+}
+
+// Reads the AX tree without drawing or taking keys, so it is safe while the user types elsewhere.
+func probe() {
+  guard AXIsProcessTrusted() else { return log("probe: accessibility not granted") }
+  guard let claude = NSRunningApplication.runningApplications(withBundleIdentifier: claudeBundleID).first else {
+    return log("probe: Claude Desktop is not running")
+  }
+  let root = AXUIElementCreateApplication(claude.processIdentifier)
+  AXUIElementSetAttributeValue(root, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+  guard let window = (attr(root, kAXWindowsAttribute) as? [AXUIElement])?.first, let rect = frame(of: window) else {
+    return log("probe: Claude Desktop has no window")
+  }
+  let targets = collectTargets(in: window)
+  let roles = Dictionary(grouping: targets, by: { $0.role }).map { role, group in "\(role)=\(group.count)" }.sorted()
+  log("probe: \(targets.count) targets in a \(Int(rect.width))x\(Int(rect.height)) window: \(roles.joined(separator: " "))")
 }
 
 let app = NSApplication.shared

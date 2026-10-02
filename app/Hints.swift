@@ -41,10 +41,11 @@ func generateLabels(_ count: Int, alphabet: [Character] = alphabet) -> [String] 
 }
 
 enum URLCommand: Equatable {
-  case start, toggle
+  case start, toggle, probe
 }
 
-// claude-vimium://toggle from /vimium; a bare claude-vimium:// only launches the app.
+// claude-vimium://toggle from /vimium; a bare claude-vimium:// only launches the app;
+// probe logs what hint mode would label, for `claude-vimium doctor`.
 func urlCommand(_ url: String) -> URLCommand? {
   let prefix = "claude-vimium://"
   guard url.lowercased().hasPrefix(prefix) else { return nil }
@@ -53,6 +54,7 @@ func urlCommand(_ url: String) -> URLCommand? {
   switch rest {
   case "", "start": return .start
   case "toggle": return .toggle
+  case "probe": return .probe
   default: return nil
   }
 }
