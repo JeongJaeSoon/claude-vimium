@@ -54,15 +54,14 @@ find_claude() {
   if [ -n "$newest" ] && [ -x "$bundled" ]; then echo "$bundled"; fi
 }
 
+# Desktop runs its newest bundled copy; an older folder left beside it does not count.
 mods_switch_needed() {
-  for v in $(desktop_versions); do
-    if version_lt "$v" "$MODS_DEFAULT_FROM"; then return 0; fi
-  done
-  return 1
+  newest=$(desktop_versions | tail -n 1)
+  [ -n "$newest" ] && version_lt "$newest" "$MODS_DEFAULT_FROM"
 }
 
 mods_switch_set() {
-  [ -f "$SETTINGS" ] && "$JQ" -e --arg k "$MODS_KEY" '.["env"][$k] // empty' "$SETTINGS" >/dev/null 2>&1
+  [ -f "$SETTINGS" ] && "$JQ" -e --arg k "$MODS_KEY" '(.["env"] // {}) | has($k)' "$SETTINGS" >/dev/null 2>&1
 }
 
 # Writes through the existing file, so a settings.json that is a symlink stays one.
@@ -90,7 +89,7 @@ remove_mods_switch() {
 reconcile_mods() {
   if mods_switch_needed; then
     if mods_switch_set; then
-      say "mods switch: already on"
+      say "mods switch: already set in $SETTINGS, left as it is"
     else
       add_mods_switch
       say "mods switch: turned on ($MODS_KEY=1 in $SETTINGS) for Claude Code older than $MODS_DEFAULT_FROM"
@@ -112,7 +111,7 @@ write_login_item() {
 <dict>
   <key>Label</key><string>$BUNDLE_ID</string>
   <key>ProgramArguments</key>
-  <array><string>$SELF</string><string>login</string></array>
+  <array><string>$(printf '%s' "$SELF" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')</string><string>login</string></array>
   <key>RunAtLoad</key><true/>
   <key>LimitLoadToSessionType</key><string>Aqua</string>
 </dict>
@@ -174,6 +173,9 @@ cmd_uninstall() {
     if plugin_installed "$claude"; then "$claude" plugin uninstall "$PLUGIN"; fi
     if marketplace_added "$claude"; then "$claude" plugin marketplace remove "$MARKETPLACE"; fi
     echo "plugin and marketplace: removed"
+  else
+    echo "claude CLI not found, so the plugin stays. Remove it later with:"
+    echo "  claude plugin uninstall $PLUGIN && claude plugin marketplace remove $MARKETPLACE"
   fi
   if [ -f "$MODS_MARKER" ]; then
     remove_mods_switch
@@ -210,9 +212,10 @@ cmd_doctor() {
     check fail "accessibility: not allowed (System Settings > Privacy & Security > Accessibility)"
   fi
   if [ "$trust" = trusted=true ] && pgrep -x ClaudeVimium >/dev/null; then
+    before=$(wc -l <"$LOG_DIR/app.log")
     open -g "claude-vimium://probe"
     sleep 2
-    probe=$(grep 'probe:' "$LOG_DIR/app.log" 2>/dev/null | tail -n 1 | sed 's/^[^ ]* probe: //')
+    probe=$(tail -n +"$((before + 1))" "$LOG_DIR/app.log" | grep 'probe:' | tail -n 1 | sed 's/^[^ ]* probe: //' || true)
     case $probe in
       [1-9]*) check ok "hint targets: $probe" ;;
       *) check fail "hint targets: ${probe:-no answer from the app}" ;;

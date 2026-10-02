@@ -1,3 +1,5 @@
+# The tap's copy is the real one: the release workflow fills in url and sha256 for each
+# tag, which this file cannot hold, since it is part of the tarball it would hash.
 class ClaudeVimium < Formula
   desc "Vimium-style keyboard hints for Claude Desktop"
   homepage "https://github.com/JeongJaeSoon/claude-vimium"
@@ -6,8 +8,8 @@ class ClaudeVimium < Formula
   license "MIT"
   head "https://github.com/JeongJaeSoon/claude-vimium.git", branch: "main"
 
-  depends_on macos: :ventura
   depends_on "jq"
+  depends_on macos: :ventura
 
   def install
     system "make", "app", "VERSION=#{version}", "ARCHS=#{Hardware::CPU.arch}"
@@ -16,7 +18,7 @@ class ClaudeVimium < Formula
     inreplace bin/"claude-vimium" do |s|
       s.gsub! "@VERSION@", version.to_s
       s.gsub! "@APP@", "#{opt_prefix}/ClaudeVimium.app"
-      s.gsub! "@JQ@", "#{Formula["jq"].opt_bin}/jq"
+      s.gsub! "@JQ@", "#{formula_opt_bin("jq")}/jq"
       s.gsub! "@SELF@", "#{opt_bin}/claude-vimium"
     end
   end

@@ -24,10 +24,9 @@ run mods | grep -q "turned on" || fail "old Claude Code: expected turned on"
 [ "$(switch)" = 1 ] || fail "old Claude Code: switch not set"
 [ "$(jq -r '.model + .["env"].KEEP' "$settings")" = opus1 ] || fail "old Claude Code: other settings lost"
 [ -f "$marker" ] || fail "old Claude Code: marker missing"
-run mods | grep -q "already on" || fail "second run: expected already on"
+run mods | grep -q "already set" || fail "second run: expected already set"
 
-# Desktop updated past 2.1.287: the switch this tool added goes away.
-rm -r "$desktop/2.1.280"
+# Desktop updated past 2.1.287, its old folder left beside the new one: the switch this tool added goes away.
 mkdir -p "$desktop/2.1.290"
 run mods | grep -q "removed" || fail "new Claude Code: expected removed"
 [ "$(switch)" = unset ] || fail "new Claude Code: switch still set"
@@ -38,8 +37,14 @@ jq '.["env"].CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = "1"' "$settings" >"$settings.tm
 run mods | grep -q "not needed" || fail "user's own switch: expected not needed"
 [ "$(switch)" = 1 ] || fail "user's own switch: removed"
 
+# A switch the user turned off is not turned on.
+rm -r "$desktop/2.1.290"
+jq '.["env"].CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = false' "$settings" >"$settings.tmp" && mv "$settings.tmp" "$settings"
+run mods | grep -q "already set" || fail "user's false: expected already set"
+[ "$(jq -r '.["env"].CLAUDE_CODE_ENABLE_FUNCTION_HOOKS' "$settings")" = false ] || fail "user's false: overwritten"
+
 # A symlinked settings.json stays a symlink.
-rm -r "$desktop/2.1.290" && mkdir -p "$desktop/2.1.284"
+rm -r "$desktop/2.1.280" && mkdir -p "$desktop/2.1.284"
 jq 'del(.["env"].CLAUDE_CODE_ENABLE_FUNCTION_HOOKS)' "$settings" >"$home/shared.json"
 rm "$settings" && ln -s "$home/shared.json" "$settings"
 run mods >/dev/null
