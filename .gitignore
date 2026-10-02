@@ -4,3 +4,5 @@
 # task briefs, implementer reports, review packages. Git history is the
 # durable record.
 .superpowers/
+
+/build/

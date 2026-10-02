@@ -1,39 +1,37 @@
 // Hint mode for the whole Claude Desktop window, driven through the macOS
 // Accessibility API: the web UI and the app chrome both appear in the AX tree,
-// which no mod surface reaches. The vimium-hints mod builds and launches this.
+// which no mod surface reaches. Runs as a menu bar app; the vimium-hints mod
+// reaches it through the claude-vimium:// URL scheme.
 import AppKit
 import ApplicationServices
 import Carbon.HIToolbox
 
 let claudeBundleID = "com.anthropic.claudefordesktop"
-let alphabet = Array("asfgqwertzxcv")
-let clickableRoles: Set<String> = [
-  "AXButton", "AXLink", "AXTextField", "AXTextArea", "AXPopUpButton", "AXCheckBox",
-  "AXMenuButton", "AXRadioButton", "AXTab", "AXComboBox", "AXMenuItem", "AXDisclosureTriangle",
-]
-let textRoles: Set<String> = ["AXTextField", "AXTextArea", "AXComboBox"]
-let clipRoles: Set<String> = ["AXScrollArea", "AXWindow", "AXWebArea"]
+let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+let accessibilitySettings = URL(
+  string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
 
-// Physical keys on an ANSI board, so a Korean or other non-latin input source
-// still types hint letters (see README, "Non-latin keyboards").
-let letterForKeyCode: [UInt16: Character] = [
-  0: "a", 1: "s", 2: "d", 3: "f", 4: "h", 5: "g", 6: "z", 7: "x", 8: "c", 9: "v", 11: "b",
-  12: "q", 13: "w", 14: "e", 15: "r", 16: "y", 17: "t", 31: "o", 32: "u", 34: "i", 35: "p",
-  37: "l", 38: "j", 40: "k", 45: "n", 46: "m",
-]
+if CommandLine.arguments.dropFirst().contains("--version") {
+  print("claude-vimium \(appVersion)")
+  exit(0)
+}
 
-// Port of generateLabels in src/claude-vimium.js: shortest labels, none a prefix of another.
-func generateLabels(_ count: Int) -> [String] {
-  let n = alphabet.count
-  let total = min(count, n * n)
-  if total <= 0 { return [] }
-  if total <= n { return alphabet.prefix(total).map(String.init) }
-  let single = max(0, (n * n - total) / (n - 1))
-  var labels = alphabet.prefix(single).map(String.init)
-  for i in single..<n {
-    for j in 0..<n where labels.count < total { labels.append(String([alphabet[i], alphabet[j]])) }
+// `claude-vimium doctor` reads this file: the app's own trust state is not
+// observable from another process.
+let logURL = FileManager.default.homeDirectoryForCurrentUser
+  .appendingPathComponent("Library/Logs/claude-vimium/app.log")
+
+func log(_ message: String) {
+  let line = "\(ISO8601DateFormatter().string(from: Date())) \(message)\n"
+  try? FileManager.default.createDirectory(
+    at: logURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+  if let handle = try? FileHandle(forWritingTo: logURL) {
+    handle.seekToEndOfFile()
+    handle.write(line.data(using: .utf8)!)
+    try? handle.close()
+  } else {
+    try? line.write(to: logURL, atomically: true, encoding: .utf8)
   }
-  return labels
 }
 
 func attr(_ element: AXUIElement, _ name: String) -> AnyObject? {
@@ -67,7 +65,9 @@ func collectTargets(in window: AXUIElement) -> [Target] {
     let rect = frame(of: element)
     if clipRoles.contains(role), let rect { clip = clip.intersection(rect) }
     if clip.isNull || clip.isEmpty { return }
-    if clickableRoles.contains(role), let rect, rect.width > 2, rect.height > 2 {
+    if isHintable(role: role, subrole: attr(element, kAXSubroleAttribute) as? String), let rect,
+      rect.width > 2, rect.height > 2
+    {
       let visible = rect.intersection(clip)
       if !visible.isNull, visible.width > 2, visible.height > 2,
         !targets.contains(where: { abs($0.rect.minX - visible.minX) < 2 && abs($0.rect.minY - visible.minY) < 2 })
@@ -117,12 +117,27 @@ final class HintMode {
   private var tap: CFMachPort?
   private var targets: [String: Target] = [:]
   private var window: AXUIElement?
+  private var observer: AXObserver?
+  private var pendingRefresh: DispatchWorkItem?
   var isActive: Bool { panel != nil }
 
   func toggle() { isActive ? exit() : enter() }
 
   func enter() {
+    guard AXIsProcessTrusted() else {
+      log("hint mode: accessibility not granted")
+      NSWorkspace.shared.open(accessibilitySettings)
+      return
+    }
     guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: claudeBundleID).first else { return }
+    // The tap swallows every key, so hint mode starts only over a frontmost Claude.
+    if !app.isActive {
+      app.activate()
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+        if app.isActive, self?.isActive == false { self?.enter() }
+      }
+      return
+    }
     let root = AXUIElementCreateApplication(app.processIdentifier)
     // Chromium builds its web AX tree only once an assistive client asks.
     AXUIElementSetAttributeValue(root, "AXManualAccessibility" as CFString, kCFBooleanTrue)
@@ -131,6 +146,7 @@ final class HintMode {
       let windowRect = frame(of: window)
     else { return }
     self.window = window
+    observe(window, pid: app.processIdentifier)
     show(windowRect: windowRect, found: collectTargets(in: window))
   }
 
@@ -170,6 +186,11 @@ final class HintMode {
     panel = nil
     view = nil
     targets = [:]
+    pendingRefresh?.cancel()
+    if let observer {
+      CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
+      self.observer = nil
+    }
     if let tap {
       CGEvent.tapEnable(tap: tap, enable: false)
       CFMachPortInvalidate(tap)
@@ -177,7 +198,32 @@ final class HintMode {
     }
   }
 
-  // An active (filtering) tap needs only the Accessibility grant the helper
+  // Labels sit at absolute positions, so a moved or resized window needs them measured again.
+  private func observe(_ window: AXUIElement, pid: pid_t) {
+    var created: AXObserver?
+    let callback: AXObserverCallback = { _, _, _, info in
+      Unmanaged<HintMode>.fromOpaque(info!).takeUnretainedValue().scheduleRefresh()
+    }
+    guard AXObserverCreate(pid, callback, &created) == .success, let observer = created else { return }
+    let me = Unmanaged.passUnretained(self).toOpaque()
+    for name in [kAXMovedNotification, kAXResizedNotification] {
+      AXObserverAddNotification(observer, window, name as CFString, me)
+    }
+    CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
+    self.observer = observer
+  }
+
+  private func scheduleRefresh(after delay: TimeInterval = 0.2) {
+    pendingRefresh?.cancel()
+    let work = DispatchWorkItem { [weak self] in
+      guard let self, self.isActive, let window = self.window, let rect = frame(of: window) else { return }
+      self.show(windowRect: rect, found: collectTargets(in: window))
+    }
+    pendingRefresh = work
+    DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+  }
+
+  // An active (filtering) tap needs only the Accessibility grant the app
   // already holds; a listen-only one would need Input Monitoring as well.
   private func startTap() {
     let mask = CGEventMask(1 << CGEventType.keyDown.rawValue) | CGEventMask(1 << CGEventType.keyUp.rawValue)
@@ -189,7 +235,7 @@ final class HintMode {
           return mode.intercept(type, event)
         }, userInfo: Unmanaged.passUnretained(self).toOpaque())
     else {
-      FileHandle.standardError.write("ClaudeVimium: event tap refused\n".data(using: .utf8)!)
+      log("hint mode: event tap refused")
       return exit()
     }
     CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
@@ -247,10 +293,7 @@ final class HintMode {
       .post(tap: .cghidEventTap)
     CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: lines, wheel2: 0, wheel3: 0)?
       .post(tap: .cghidEventTap)
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-      guard let self, self.isActive, let window = self.window, let rect = frame(of: window) else { return }
-      self.show(windowRect: rect, found: collectTargets(in: window))
-    }
+    scheduleRefresh(after: 0.15)
   }
 
   private func activate(_ target: Target) {
@@ -296,6 +339,50 @@ final class Hotkey {
   }
 }
 
+// An LSUIElement app has no Dock icon and no menu bar of its own; without this
+// item the only way to quit it would be Activity Monitor.
+final class StatusMenu: NSObject, NSMenuDelegate {
+  private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+  private let hintMode: HintMode
+  private let accessibility = NSMenuItem(title: "", action: #selector(openAccessibility), keyEquivalent: "")
+
+  init(hintMode: HintMode) {
+    self.hintMode = hintMode
+    super.init()
+    item.button?.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "claude-vimium")
+    let menu = NSMenu()
+    menu.delegate = self
+    let show = NSMenuItem(title: "Show Hints in Claude  (⌃;)", action: #selector(showHints), keyEquivalent: "")
+    let quit = NSMenuItem(title: "Quit claude-vimium", action: #selector(quit), keyEquivalent: "q")
+    for entry in [show, accessibility, quit] { entry.target = self }
+    let about = NSMenuItem(title: "claude-vimium \(appVersion)", action: nil, keyEquivalent: "")
+    about.isEnabled = false
+    [about, .separator(), show, accessibility, .separator(), quit].forEach(menu.addItem)
+    item.menu = menu
+  }
+
+  func menuWillOpen(_ menu: NSMenu) {
+    accessibility.title = AXIsProcessTrusted() ? "Accessibility: allowed" : "Allow Accessibility…"
+  }
+
+  @objc private func showHints() { hintMode.enter() }
+
+  @objc private func openAccessibility() { NSWorkspace.shared.open(accessibilitySettings) }
+  @objc private func quit() { NSApp.terminate(nil) }
+}
+
+final class URLHandler: NSObject {
+  private let hintMode: HintMode
+  init(hintMode: HintMode) { self.hintMode = hintMode }
+
+  @objc func handle(_ event: NSAppleEventDescriptor, withReply reply: NSAppleEventDescriptor) {
+    guard let url = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
+      let command = urlCommand(url)
+    else { return }
+    if command == .toggle { hintMode.toggle() }
+  }
+}
+
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 
@@ -306,23 +393,33 @@ if NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bu
   exit(0)
 }
 
-let trusted = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
-FileHandle.standardError.write("ClaudeVimium: accessibility trusted=\(trusted)\n".data(using: .utf8)!)
-
 let hintMode = HintMode()
+// Registered before app.run(), so a URL that launched the app is delivered, not lost.
+let urlHandler = URLHandler(hintMode: hintMode)
+NSAppleEventManager.shared().setEventHandler(
+  urlHandler, andSelector: #selector(URLHandler.handle(_:withReply:)),
+  forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
+
+let trusted = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
+log("started \(appVersion) at \(Bundle.main.bundlePath); accessibility trusted=\(trusted)")
+if !trusted {
+  Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { timer in
+    guard AXIsProcessTrusted() else { return }
+    log("accessibility trusted=true")
+    timer.invalidate()
+  }
+}
+
+let statusMenu = StatusMenu(hintMode: hintMode)
 let hotkey = Hotkey { DispatchQueue.main.async { hintMode.toggle() } }
 let isClaudeFront = { NSWorkspace.shared.frontmostApplication?.bundleIdentifier == claudeBundleID }
 hotkey.setEnabled(isClaudeFront())
 NSWorkspace.shared.notificationCenter.addObserver(
   forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
 ) { _ in
-  hotkey.setEnabled(isClaudeFront() || hintMode.isActive)
+  // The tap swallows every key, so hint mode must not outlive Claude's focus.
+  if !isClaudeFront() { hintMode.exit() }
+  hotkey.setEnabled(isClaudeFront())
 }
-
-// The mod's /vimium sends SIGUSR1: Desktop panes do not take hotkeys.
-signal(SIGUSR1, SIG_IGN)
-let usr1 = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: .main)
-usr1.setEventHandler { hintMode.toggle() }
-usr1.resume()
 
 app.run()
