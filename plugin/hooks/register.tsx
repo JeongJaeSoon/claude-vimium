@@ -1,7 +1,7 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-const PANE = 'vimium'
-// Same default alphabet as src/claude-vimium.js. A Button hotkey is one
+const PANE = 'hintvim'
+// Same default alphabet as src/hintvim.js. A Button hotkey is one
 // lowercase letter, so labels never grow past one character here.
 const ALPHABET = 'asfgqwertzxcv'
 
@@ -22,38 +22,38 @@ export function lastCodeBlock(text: string): string | undefined {
 }
 
 export const INSTALL_HINT =
-  'the claude-vimium app was not found. Run /vimium-hints:setup, or: brew install jeongjaesoon/tap/claude-vimium && claude-vimium setup'
+  'the hintvim app was not found. Run /hintvim:setup, or: brew install jeongjaesoon/tap/hintvim && hintvim setup'
 
-// Hint mode lives in the ClaudeVimium app: it needs the Accessibility tree and
+// Hint mode lives in the Hintvim app: it needs the Accessibility tree and
 // a global key, and no mod surface reaches either. The URL scheme also starts
 // the app when it is not running.
 async function openApp($: EngineInterface, command: 'start' | 'toggle') {
-  const run = await $.process.run(['/usr/bin/open', '-g', `claude-vimium://${command}`], { timeoutMs: 10_000 })
+  const run = await $.process.run(['/usr/bin/open', '-g', `hintvim://${command}`], { timeoutMs: 10_000 })
   return run.exitCode === 0
 }
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
-      name: 'vimium',
-      description: 'Hint mode over the whole Claude Desktop window (also Ctrl+;)',
+      name: 'hintvim',
+      description: 'Show hint labels over the Claude window (same as Ctrl+;)',
       immediate: true,
     })
     await $.command.register({
-      name: 'vimium-palette',
-      description: 'Hint palette: press one letter to act',
+      name: 'hintvim-palette',
+      description: 'Copy the last reply, code block, cwd or session id; show usage; compact',
       immediate: true,
     })
-    if (!(await openApp($, 'start'))) $.ui.toast(`vimium-hints: ${INSTALL_HINT}`)
+    if (!(await openApp($, 'start'))) $.ui.toast(`hintvim: ${INSTALL_HINT}`)
     return next(e)
   })
 
-  on('command.run', { command: 'vimium' }, async $ => {
-    return (await openApp($, 'toggle')) ? {} : { text: `vimium-hints: ${INSTALL_HINT}` }
+  on('command.run', { command: 'hintvim' }, async $ => {
+    return (await openApp($, 'toggle')) ? {} : { text: `hintvim: ${INSTALL_HINT}` }
   })
 
-  on('command.run', { command: 'vimium-palette' }, async $ => {
-    await $.ui.open({ id: PANE, title: 'vimium', focus: true, closeOnEscape: true, rows: ACTIONS.length + 1 })
+  on('command.run', { command: 'hintvim-palette' }, async $ => {
+    await $.ui.open({ id: PANE, title: 'hintvim', focus: true, closeOnEscape: true, rows: ACTIONS.length + 1 })
     return {}
   })
 

@@ -20,7 +20,7 @@ jobs:
         run: |
           v=${VERSION#v}
           grep -qF "\"version\": \"$v\"" plugin/.claude-plugin/plugin.json
-          grep -qF "/tags/v$v.tar.gz\"" packaging/claude-vimium.rb
+          grep -qF "/tags/v$v.tar.gz\"" packaging/hintvim.rb
           awk -v h="## [$v]" 'index($0, h) == 1 {f = 1} END {exit !f}' CHANGELOG.md
       - name: Publish the release
         run: |

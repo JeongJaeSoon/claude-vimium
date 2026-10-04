@@ -1,6 +1,6 @@
 VERSION ?= 0.0.0-dev
 ARCHS ?= arm64 x86_64
-APP := build/ClaudeVimium.app
+APP := build/Hintvim.app
 SOURCES := app/Hints.swift app/main.swift
 
 .PHONY: app icon test clean
@@ -9,9 +9,9 @@ app:
 	rm -rf $(APP) build/obj
 	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources build/obj
 	for arch in $(ARCHS); do \
-	  swiftc -O -target $$arch-apple-macos13.0 $(SOURCES) -o build/obj/ClaudeVimium-$$arch || exit 1; \
+	  swiftc -O -target $$arch-apple-macos13.0 $(SOURCES) -o build/obj/Hintvim-$$arch || exit 1; \
 	done
-	lipo -create build/obj/ClaudeVimium-* -output $(APP)/Contents/MacOS/ClaudeVimium
+	lipo -create build/obj/Hintvim-* -output $(APP)/Contents/MacOS/Hintvim
 	sed 's/@VERSION@/$(VERSION)/g' app/Info.plist > $(APP)/Contents/Info.plist
 	plutil -lint $(APP)/Contents/Info.plist
 	cp app/AppIcon.icns $(APP)/Contents/Resources/

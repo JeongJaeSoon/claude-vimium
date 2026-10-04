@@ -8,7 +8,7 @@ A DevTools snippet **persists across app restarts**: you save it once and run it
 
 1. In Claude Desktop, press `Cmd+Alt+I` to open DevTools
 2. Go to **Sources → Snippets → New snippet**
-3. Paste the contents of [`src/claude-vimium.js`](../src/claude-vimium.js) and name it `claude-vimium`
+3. Paste the contents of [`src/hintvim.js`](../src/hintvim.js) and name it `hintvim`
 4. Press `Cmd+Enter` to run it
 
 **After each app restart**

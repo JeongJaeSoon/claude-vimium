@@ -1,7 +1,7 @@
 // Hint mode for the whole Claude Desktop window, driven through the macOS
 // Accessibility API: the web UI and the app chrome both appear in the AX tree,
-// which no mod surface reaches. Runs as a menu bar app; the vimium-hints mod
-// reaches it through the claude-vimium:// URL scheme.
+// which no mod surface reaches. Runs as a menu bar app; the hintvim mod
+// reaches it through the hintvim:// URL scheme.
 import AppKit
 import ApplicationServices
 import Carbon.HIToolbox
@@ -12,14 +12,14 @@ let accessibilitySettings = URL(
   string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
 
 if CommandLine.arguments.dropFirst().contains("--version") {
-  print("claude-vimium \(appVersion)")
+  print("hintvim \(appVersion)")
   exit(0)
 }
 
-// `claude-vimium doctor` reads this file: the app's own trust state is not
+// `hintvim doctor` reads this file: the app's own trust state is not
 // observable from another process.
 let logURL = FileManager.default.homeDirectoryForCurrentUser
-  .appendingPathComponent("Library/Logs/claude-vimium/app.log")
+  .appendingPathComponent("Library/Logs/hintvim/app.log")
 
 func log(_ message: String) {
   let line = "\(ISO8601DateFormatter().string(from: Date())) \(message)\n"
@@ -372,9 +372,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     let menu = NSMenu()
     menu.delegate = self
     let show = NSMenuItem(title: "Show Hints in Claude  (⌃;)", action: #selector(showHints), keyEquivalent: "")
-    let quit = NSMenuItem(title: "Quit claude-vimium", action: #selector(quit), keyEquivalent: "q")
+    let quit = NSMenuItem(title: "Quit hintvim", action: #selector(quit), keyEquivalent: "q")
     for entry in [show, accessibility, quit] { entry.target = self }
-    let about = NSMenuItem(title: "claude-vimium \(appVersion)", action: nil, keyEquivalent: "")
+    let about = NSMenuItem(title: "hintvim \(appVersion)", action: nil, keyEquivalent: "")
     about.isEnabled = false
     [about, .separator(), show, accessibility, .separator(), quit].forEach(menu.addItem)
     item.menu = menu
@@ -406,7 +406,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
       return true
     }
     image.isTemplate = true
-    image.accessibilityDescription = "claude-vimium"
+    image.accessibilityDescription = "hintvim"
     return image
   }
 

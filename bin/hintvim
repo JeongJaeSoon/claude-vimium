@@ -1,5 +1,5 @@
 #!/bin/sh
-# Sets up, checks and removes everything around ClaudeVimium.app: the login
+# Sets up, checks and removes everything around Hintvim.app: the login
 # item and, unless setup --app-only, the optional Claude plugin with the mods
 # switch older Claude Code needs to load it.
 set -eu
@@ -8,27 +8,30 @@ VERSION=@VERSION@
 APP=@APP@
 JQ=@JQ@
 SELF=@SELF@
-case $APP in @*) APP="$(cd "$(dirname "$0")/.." && pwd)/build/ClaudeVimium.app" ;; esac
+case $APP in @*) APP="$(cd "$(dirname "$0")/.." && pwd)/build/Hintvim.app" ;; esac
 case $JQ in @*) JQ=jq ;; esac
 case $VERSION in @*) VERSION=dev ;; esac
 # The login item must name a path that survives upgrades: the formula fills in opt_bin.
 case $SELF in @*) SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")" ;; esac
 
-BUNDLE_ID=io.github.jeongjaesoon.claude-vimium
-MARKETPLACE="claude-vimium"
-MARKETPLACE_SOURCE=${CLAUDE_VIMIUM_MARKETPLACE:-JeongJaeSoon/claude-vimium}
-PLUGIN=vimium-hints@claude-vimium
+BUNDLE_ID=io.github.jeongjaesoon.hintvim
+MARKETPLACE="hintvim"
+MARKETPLACE_SOURCE=${HINTVIM_MARKETPLACE:-JeongJaeSoon/hintvim}
+PLUGIN=hintvim@hintvim
 MODS_KEY=CLAUDE_CODE_ENABLE_FUNCTION_HOOKS
 # Mods load by default from this Claude Code release on, which ignores the switch.
 MODS_DEFAULT_FROM=2.1.287
-SETTINGS=${CLAUDE_VIMIUM_SETTINGS:-$HOME/.claude/settings.json}
+SETTINGS=${HINTVIM_SETTINGS:-$HOME/.claude/settings.json}
 DESKTOP_CODE="$HOME/Library/Application Support/Claude/claude-code"
-STATE_DIR="$HOME/Library/Application Support/claude-vimium"
-LOG_DIR="$HOME/Library/Logs/claude-vimium"
+STATE_DIR="$HOME/Library/Application Support/hintvim"
+LOG_DIR="$HOME/Library/Logs/hintvim"
 AGENT="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
 # Present only when this tool, not the user, put the switch in settings.json.
 MODS_MARKER="$STATE_DIR/added-mods-switch"
 APP_ONLY_MARKER="$STATE_DIR/app-only"
+# Before 1.0.0 the project was claude-vimium; setup and uninstall clear what that left.
+OLD_ID=io.github.jeongjaesoon.claude-vimium
+OLD_STATE_DIR="$HOME/Library/Application Support/claude-vimium"
 
 say() {
   printf '%s\n' "$*"
@@ -146,7 +149,7 @@ marketplace_added() {
 setup_plugin() {
   claude=$(find_claude)
   if [ -z "$claude" ]; then
-    say "claude CLI not found: install Claude Desktop, open its Code tab once, then run claude-vimium setup again"
+    say "claude CLI not found: install Claude Desktop, open its Code tab once, then run hintvim setup again"
   else
     say "claude CLI: $claude"
     if marketplace_added "$claude"; then
@@ -165,9 +168,41 @@ setup_plugin() {
   reconcile_mods
 }
 
+remove_old_install() {
+  old_agent="$HOME/Library/LaunchAgents/$OLD_ID.plist"
+  if [ -f "$old_agent" ]; then
+    launchctl bootout "gui/$(id -u)/$OLD_ID" 2>/dev/null || true
+    rm -f "$old_agent"
+    say "claude-vimium login item: removed"
+  fi
+  pkill -x ClaudeVimium 2>/dev/null || true
+  if claude=$(find_claude) && [ -n "$claude" ]; then
+    if "$claude" plugin list 2>/dev/null | grep -q "vimium-hints@claude-vimium"; then
+      "$claude" plugin uninstall vimium-hints@claude-vimium
+      say "claude-vimium plugin: removed"
+    fi
+    if "$claude" plugin marketplace list 2>/dev/null | grep -q "❯ claude-vimium\$"; then
+      "$claude" plugin marketplace remove claude-vimium
+    fi
+    rm -rf "$HOME/.claude/plugins/cache/claude-vimium" "$HOME/.claude/plugins/data/vimium-hints-claude-vimium"
+  fi
+  if [ -d "$OLD_STATE_DIR" ]; then
+    # Keeps the record that setup, not the user, added the mods switch.
+    if [ -f "$OLD_STATE_DIR/added-mods-switch" ]; then
+      mkdir -p "$STATE_DIR"
+      : >"$MODS_MARKER"
+    fi
+    rm -rf "$OLD_STATE_DIR" "$HOME/Library/Logs/claude-vimium"
+    tccutil reset Accessibility "$OLD_ID" >/dev/null 2>&1 || true
+    say "claude-vimium state and Accessibility entry: removed"
+  fi
+}
+
 cmd_setup() {
-  [ -d "$APP" ] || { echo "ClaudeVimium.app not found at $APP" >&2; exit 1; }
+  [ -d "$APP" ] || { echo "Hintvim.app not found at $APP" >&2; exit 1; }
   [ "$#" -le 1 ] || { usage >&2; exit 2; }
+  case ${1:-} in --app-only | "") ;; *) usage >&2; exit 2 ;; esac
+  remove_old_install
   case ${1:-} in
     --app-only)
       mkdir -p "$STATE_DIR"
@@ -180,20 +215,19 @@ cmd_setup() {
       fi
       rm -f "$MODS_MARKER"
       if claude=$(find_claude) && [ -n "$claude" ] && plugin_installed "$claude"; then
-        say "plugin $PLUGIN: still installed; claude-vimium uninstall removes it"
+        say "plugin $PLUGIN: still installed; hintvim uninstall removes it"
       fi
       ;;
     "")
       rm -f "$APP_ONLY_MARKER"
       setup_plugin
       ;;
-    *) usage >&2; exit 2 ;;
   esac
   # Restart, so an upgraded app replaces the one still running.
-  pkill -x ClaudeVimium 2>/dev/null || true
+  pkill -x Hintvim 2>/dev/null || true
   write_login_item
   say "login item: $AGENT"
-  say "ClaudeVimium $VERSION is starting. Allow it in System Settings > Privacy & Security > Accessibility,"
+  say "hintvim $VERSION is starting. Allow it in System Settings > Privacy & Security > Accessibility,"
   say "then click into Claude Desktop and press Ctrl+;."
 }
 
@@ -205,14 +239,15 @@ cmd_login() {
 cmd_uninstall() {
   launchctl bootout "gui/$(id -u)/$BUNDLE_ID" 2>/dev/null || true
   rm -f "$AGENT"
-  pkill -x ClaudeVimium 2>/dev/null || true
+  pkill -x Hintvim 2>/dev/null || true
   echo "login item: removed"
+  remove_old_install
   claude=$(find_claude)
   if [ -n "$claude" ]; then
     if plugin_installed "$claude"; then "$claude" plugin uninstall "$PLUGIN"; fi
     if marketplace_added "$claude"; then "$claude" plugin marketplace remove "$MARKETPLACE"; fi
     # claude plugin uninstall keeps the cached copy; nothing else shares this marketplace's folder.
-    rm -rf "$HOME/.claude/plugins/cache/$MARKETPLACE" "$HOME/.claude/plugins/data/vimium-hints-$MARKETPLACE"
+    rm -rf "$HOME/.claude/plugins/cache/$MARKETPLACE" "$HOME/.claude/plugins/data/hintvim-$MARKETPLACE"
     echo "plugin and marketplace: removed"
   else
     echo "claude CLI not found, so the plugin stays. Remove it later with:"
@@ -227,9 +262,9 @@ cmd_uninstall() {
   if tccutil reset Accessibility "$BUNDLE_ID" >/dev/null 2>&1; then
     echo "Accessibility entry: removed"
   else
-    echo "Remove claude-vimium from System Settings > Privacy & Security > Accessibility yourself."
+    echo "Remove hintvim from System Settings > Privacy & Security > Accessibility yourself."
   fi
-  echo "Finish with: brew uninstall claude-vimium"
+  echo "Finish with: brew uninstall hintvim"
 }
 
 check() {
@@ -238,13 +273,13 @@ check() {
 
 cmd_doctor() {
   failed=0
-  echo "claude-vimium $VERSION"
+  echo "hintvim $VERSION"
   if [ -d "$APP" ]; then check ok "app: $APP"; else check fail "app: not found at $APP"; fi
-  if pgrep -x ClaudeVimium >/dev/null; then check ok "app: running"; else check fail "app: not running (claude-vimium start)"; fi
+  if pgrep -x Hintvim >/dev/null; then check ok "app: running"; else check fail "app: not running (hintvim start)"; fi
   if launchctl print "gui/$(id -u)/$BUNDLE_ID" >/dev/null 2>&1; then
     check ok "login item: loaded"
   else
-    check fail "login item: not loaded (claude-vimium setup)"
+    check fail "login item: not loaded (hintvim setup)"
   fi
   trust=$(grep -o 'trusted=[a-z]*' "$LOG_DIR/app.log" 2>/dev/null | tail -n 1 || true)
   if [ "$trust" = trusted=true ]; then
@@ -252,9 +287,9 @@ cmd_doctor() {
   else
     check fail "accessibility: not allowed (System Settings > Privacy & Security > Accessibility)"
   fi
-  if [ "$trust" = trusted=true ] && pgrep -x ClaudeVimium >/dev/null; then
+  if [ "$trust" = trusted=true ] && pgrep -x Hintvim >/dev/null; then
     before=$(wc -l <"$LOG_DIR/app.log")
-    open -g "claude-vimium://probe"
+    open -g "hintvim://probe"
     sleep 2
     probe=$(tail -n +"$((before + 1))" "$LOG_DIR/app.log" | grep 'probe:' | tail -n 1 | sed 's/^[^ ]* probe: //' || true)
     case $probe in
@@ -264,7 +299,7 @@ cmd_doctor() {
     esac
   fi
   if [ -f "$APP_ONLY_MARKER" ]; then
-    echo "  info  plugin: skipped by setup --app-only (optional: run claude-vimium setup for /vimium)"
+    echo "  info  plugin: skipped by setup --app-only (optional: run hintvim setup for /hintvim)"
     return "$failed"
   fi
   claude=$(find_claude)
@@ -272,20 +307,20 @@ cmd_doctor() {
     check fail "claude CLI: not found"
   else
     check ok "claude CLI: $claude"
-    if plugin_installed "$claude"; then check ok "plugin: $PLUGIN"; else check fail "plugin: $PLUGIN not installed (claude-vimium setup)"; fi
+    if plugin_installed "$claude"; then check ok "plugin: $PLUGIN"; else check fail "plugin: $PLUGIN not installed (hintvim setup)"; fi
     # The documented check: in an empty directory, a loadable engine reports no module.
     empty=$(mktemp -d)
     mods=$(cd "$empty" && "$claude" plugin test 2>&1 | tail -n 1)
     rm -rf "$empty"
     case $mods in
       *"no hooks module"*) check ok "mods: can load" ;;
-      *) printf '  warn  %s\n' "mods: cannot load, so /vimium is missing; Ctrl+; still works ($mods)" ;;
+      *) printf '  warn  %s\n' "mods: cannot load, so /hintvim is missing; Ctrl+; still works ($mods)" ;;
     esac
   fi
   versions=$(desktop_versions | tr '\n' ' ')
   echo "  info  Claude Desktop's Claude Code: ${versions:-none found}"
   if mods_switch_needed && ! mods_switch_set; then
-    check fail "mods switch: needed for Claude Code older than $MODS_DEFAULT_FROM (claude-vimium setup)"
+    check fail "mods switch: needed for Claude Code older than $MODS_DEFAULT_FROM (hintvim setup)"
   else
     check ok "mods switch: $(mods_switch_value | tr -d '"')"
   fi
@@ -294,16 +329,16 @@ cmd_doctor() {
 
 usage() {
   cat <<EOF
-claude-vimium $VERSION: Vimium-style keyboard hints for Claude Desktop
+hintvim $VERSION: Vimium-style keyboard hints for Claude Desktop
 
-  claude-vimium setup       start the app, start it at login, add the optional Claude plugin
-  claude-vimium setup --app-only   the same without the plugin and the mods switch
-  claude-vimium doctor      check every piece and say how to fix what is missing
-  claude-vimium mods        turn the mods switch on or off to match Claude Desktop
-  claude-vimium toggle      show or hide hints (same as Ctrl+; in Claude Desktop)
-  claude-vimium start|stop  start or quit the app
-  claude-vimium uninstall   undo everything setup did
-  claude-vimium version
+  hintvim setup       start the app, start it at login, add the optional Claude plugin
+  hintvim setup --app-only   the same without the plugin and the mods switch
+  hintvim doctor      check every piece and say how to fix what is missing
+  hintvim mods        turn the mods switch on or off to match Claude Desktop
+  hintvim toggle      show or hide hints (same as Ctrl+; in Claude Desktop)
+  hintvim start|stop  start or quit the app
+  hintvim uninstall   undo everything setup did
+  hintvim version
 EOF
 }
 
@@ -312,11 +347,11 @@ case "${1:-}" in
   login) cmd_login ;;
   mods) reconcile_mods ;;
   doctor) cmd_doctor ;;
-  toggle) open -g "claude-vimium://toggle" ;;
+  toggle) open -g "hintvim://toggle" ;;
   start) open -g "$APP" ;;
-  stop) pkill -x ClaudeVimium || true ;;
+  stop) pkill -x Hintvim || true ;;
   uninstall) cmd_uninstall ;;
-  version | --version) echo "claude-vimium $VERSION" ;;
+  version | --version) echo "hintvim $VERSION" ;;
   help | -h | --help | "") usage ;;
   *) usage >&2; exit 2 ;;
 esac
