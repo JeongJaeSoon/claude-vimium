@@ -178,6 +178,7 @@ cmd_setup() {
         remove_mods_switch
         say "mods switch: removed, setup had added it"
       fi
+      rm -f "$MODS_MARKER"
       if claude=$(find_claude) && [ -n "$claude" ] && plugin_installed "$claude"; then
         say "plugin $PLUGIN: still installed; claude-vimium uninstall removes it"
       fi

@@ -100,6 +100,13 @@ setup --app-only | grep -q "mods switch: removed" || fail "app-only setup: expec
 [ "$(switch)" = unset ] || fail "app-only setup: switch still set"
 [ -f "$home/Library/Application Support/claude-vimium/app-only" ] || fail "app-only setup: marker missing"
 
+# A switch the user changed after setup added it stays, and setup no longer claims it.
+setup >/dev/null && [ "$(switch)" = 1 ] || fail "full setup: switch not added"
+jq '.["env"].CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = false' "$settings" >"$settings.tmp" && cat "$settings.tmp" >"$settings"
+setup --app-only >/dev/null
+[ "$(switch)" = false ] || fail "app-only setup: user's change overwritten"
+[ ! -e "$marker" ] || fail "app-only setup: stale ownership marker"
+
 run version | grep -q "claude-vimium dev" || fail "version"
 run bogus 2>/dev/null && fail "unknown command should fail"
 
