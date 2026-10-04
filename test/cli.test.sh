@@ -87,6 +87,19 @@ login
 [ "$(switch)" = 1 ] || fail "login: switch not added"
 run setup --bogus 2>/dev/null && fail "setup with an unknown option should fail"
 
+# setup --app-only after a full setup takes back the switch that setup added. A copy of the
+# command with a stand-in app, and stubs for the system tools, keep the real login item untouched.
+mkdir -p "$home/repo/bin" "$home/repo/build/ClaudeVimium.app"
+cp "$cli" "$home/repo/bin/claude-vimium"
+for t in pkill launchctl; do printf '#!/bin/sh\n' >"$stub/$t" && chmod +x "$stub/$t"; done
+setup() { HOME="$home" PATH="$stub":/usr/bin:/bin:"$(dirname "$(command -v jq)")" sh "$home/repo/bin/claude-vimium" setup "$@"; }
+[ "$(switch)" = 1 ] && [ -f "$marker" ] || fail "app-only setup: fixture lacks the added switch"
+setup --app-only --bogus 2>/dev/null && fail "setup with an extra operand should fail"
+[ ! -e "$home/Library/Application Support/claude-vimium/app-only" ] || fail "rejected setup changed state"
+setup --app-only | grep -q "mods switch: removed" || fail "app-only setup: expected the switch removed"
+[ "$(switch)" = unset ] || fail "app-only setup: switch still set"
+[ -f "$home/Library/Application Support/claude-vimium/app-only" ] || fail "app-only setup: marker missing"
+
 run version | grep -q "claude-vimium dev" || fail "version"
 run bogus 2>/dev/null && fail "unknown command should fail"
 

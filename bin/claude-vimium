@@ -167,11 +167,20 @@ setup_plugin() {
 
 cmd_setup() {
   [ -d "$APP" ] || { echo "ClaudeVimium.app not found at $APP" >&2; exit 1; }
+  [ "$#" -le 1 ] || { usage >&2; exit 2; }
   case ${1:-} in
     --app-only)
       mkdir -p "$STATE_DIR"
       : >"$APP_ONLY_MARKER"
       say "plugin and mods switch: skipped (--app-only); Ctrl+; needs only the app"
+      # A switch an earlier full setup added would otherwise outlive the plugin's checks.
+      if [ -f "$MODS_MARKER" ] && [ "$(mods_switch_value)" = '"1"' ]; then
+        remove_mods_switch
+        say "mods switch: removed, setup had added it"
+      fi
+      if claude=$(find_claude) && [ -n "$claude" ] && plugin_installed "$claude"; then
+        say "plugin $PLUGIN: still installed; claude-vimium uninstall removes it"
+      fi
       ;;
     "")
       rm -f "$APP_ONLY_MARKER"
