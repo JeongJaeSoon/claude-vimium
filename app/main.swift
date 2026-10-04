@@ -394,9 +394,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
       notch.line(to: NSPoint(x: 3.5, y: 15.5))
       notch.line(to: NSPoint(x: 9.5, y: 11))
       notch.close()
-      tag.append(notch)
       NSColor.black.setFill()
       tag.fill()
+      notch.fill()
       NSGraphicsContext.current?.cgContext.setBlendMode(.destinationOut)
       let letters = NSAttributedString(string: "FJ", attributes: [
         .font: NSFont.monospacedSystemFont(ofSize: 9.5, weight: .heavy), .kern: 0.5,
