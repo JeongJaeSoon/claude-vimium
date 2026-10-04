@@ -2,9 +2,12 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-05
+
 ### Fixed
 
 - `Ctrl+;` reopens Claude's window when the last one was closed, instead of doing nothing ([#14](https://github.com/JeongJaeSoon/hintvim/issues/14)).
+- Troubleshooting no longer tells you to press `Esc` before `Ctrl+;` while an input method is composing; `Ctrl+;` works then ([#11](https://github.com/JeongJaeSoon/hintvim/issues/11)).
 
 ## [1.0.0] - 2026-10-04
 
@@ -57,7 +60,8 @@ Unreleased preview: the plugin built and started an Accessibility helper on each
 
 DevTools snippet (`src/hintvim.js`) with hint mode over the web page, settings and help panels.
 
-[Unreleased]: https://github.com/JeongJaeSoon/hintvim/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/JeongJaeSoon/hintvim/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/JeongJaeSoon/hintvim/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/JeongJaeSoon/hintvim/compare/v0.3.1...v1.0.0
 [0.3.1]: https://github.com/JeongJaeSoon/hintvim/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/JeongJaeSoon/hintvim/releases/tag/v0.3.0
