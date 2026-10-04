@@ -22,5 +22,4 @@ If every line is `ok` and hints still do not appear:
 
 - The mod reaches the app only in a **new** Code session after setup. Ask the user to open one.
 - `Ctrl+;` works only while Claude Desktop is the frontmost app.
-- While an input method is composing (Korean, Japanese), `Ctrl+;` can be swallowed. Press `Esc` first.
 - `~/Library/Logs/hintvim/app.log` records each start and the Accessibility state.
