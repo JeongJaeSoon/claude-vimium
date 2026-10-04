@@ -3,7 +3,7 @@
 class ClaudeVimium < Formula
   desc "Vimium-style keyboard hints for Claude Desktop"
   homepage "https://github.com/JeongJaeSoon/claude-vimium"
-  url "https://github.com/JeongJaeSoon/claude-vimium/archive/refs/tags/v0.3.0.tar.gz"
+  url "https://github.com/JeongJaeSoon/claude-vimium/archive/refs/tags/v0.3.1.tar.gz"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
   license "MIT"
   head "https://github.com/JeongJaeSoon/claude-vimium.git", branch: "main"

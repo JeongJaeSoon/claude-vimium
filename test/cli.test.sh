@@ -74,6 +74,19 @@ run mods >/dev/null
 rm -r "$desktop/2.1.284" && mkdir -p "$desktop/2.1.1000"
 run mods | grep -q "removed" || fail "2.1.1000: expected removed"
 
+# setup --app-only leaves the plugin out: the login item then never touches the switch.
+stub="$home/stub" && mkdir -p "$stub" && printf '#!/bin/sh\n' >"$stub/open" && chmod +x "$stub/open"
+login() { HOME="$home" PATH="$stub":/usr/bin:/bin:"$(dirname "$(command -v jq)")" sh "$cli" login; }
+rm "$settings" && printf '{}\n' >"$settings" && rm -f "$marker" && rm -r "$desktop/2.1.1000" && mkdir -p "$desktop/2.1.280"
+touch "$home/Library/Application Support/claude-vimium/app-only"
+login
+[ "$(switch)" = unset ] || fail "app-only login: switch added"
+run doctor 2>/dev/null | grep -q "skipped by setup --app-only" || fail "app-only doctor: plugin not reported as skipped"
+rm "$home/Library/Application Support/claude-vimium/app-only"
+login
+[ "$(switch)" = 1 ] || fail "login: switch not added"
+run setup --bogus 2>/dev/null && fail "setup with an unknown option should fail"
+
 run version | grep -q "claude-vimium dev" || fail "version"
 run bogus 2>/dev/null && fail "unknown command should fail"
 
