@@ -1,0 +1,23 @@
+#compdef hintvim
+
+_hintvim() {
+  local -a commands
+  commands=(
+    'setup:start the app, start it at login, add the optional Claude plugin'
+    'doctor:check every piece and say how to fix what is missing'
+    'mods:turn the mods switch on or off to match Claude Desktop'
+    'toggle:show or hide hints'
+    'start:start the app'
+    'stop:quit the app'
+    'uninstall:undo everything setup did'
+    'version:print the version'
+    'help:show usage'
+  )
+  if (( CURRENT == 2 )); then
+    _describe 'command' commands
+  elif [[ $words[2] == setup ]] && (( CURRENT == 3 )); then
+    _arguments '--app-only[set up the app only, without the plugin and the mods switch]'
+  fi
+}
+
+_hintvim "$@"

@@ -1,4 +1,4 @@
-// claude-vimium — keyboard-driven UI navigation for Claude Desktop
+// hintvim — keyboard-driven UI navigation for Claude Desktop
 // Runs from a DevTools snippet; see README.md for why there is no installer.
 (() => {
   'use strict';
@@ -178,7 +178,7 @@
 
   // ─── runtime ─────────────────────────────────────────────────────
 
-  const STORAGE_KEY = 'claude-vimium:config';
+  const STORAGE_KEY = 'hintvim:config';
   let config = loadConfig(localStorage.getItem(STORAGE_KEY));
 
   function saveConfig(next) {
@@ -188,7 +188,7 @@
     } catch {
       // Storage disabled or full. The in-memory config still applies for
       // this session; only persistence is lost.
-      console.warn('[claude-vimium] could not persist settings');
+      console.warn('[hintvim] could not persist settings');
     }
   }
 
@@ -249,7 +249,7 @@
   }
 
   function openSettings() {
-    openPanel('claude-vimium 설정', (panel, close, onCleanup) => {
+    openPanel('hintvim 설정', (panel, close, onCleanup) => {
       const draft = { ...config, leader: { ...config.leader } };
 
       const leaderRow = document.createElement('div');
@@ -326,7 +326,7 @@
   }
 
   function openHelp() {
-    openPanel('claude-vimium 키 바인딩', (panel) => {
+    openPanel('hintvim 키 바인딩', (panel) => {
       const rows = [
         [describeLeader(config.leader), '힌트 모드 진입 / 종료'],
         [config.alphabet.slice(0, 4) + '…', '힌트 라벨 입력 (현재 문자셋)'],
@@ -399,7 +399,7 @@
     '[contenteditable="true"]',
   ].join(',');
 
-  const OVERLAY_ID = 'claude-vimium-overlay';
+  const OVERLAY_ID = 'hintvim-overlay';
   const hintState = { active: false, entries: [], typed: '' };
   let overlayEl = null;
   let repositionQueued = false;
@@ -587,7 +587,7 @@
     const visible = [...document.querySelectorAll(HINT_SELECTOR)].filter((el) => {
       if (el.disabled) return false;
       if (el.getAttribute('aria-disabled') === 'true') return false;
-      if (el.closest('#claude-vimium-overlay')) return false;
+      if (el.closest('#hintvim-overlay')) return false;
       if (!passesGeometry(el.getBoundingClientRect(), viewport)) return false;
       return passesStyle(getComputedStyle(el));
     });
@@ -769,7 +769,7 @@
 
   function init() {
     // Re-running this file must not leave a second instance behind.
-    if (window.__claudeVimium) window.__claudeVimium.teardown();
+    if (window.__hintvim) window.__hintvim.teardown();
 
     const listeners = [];
     const on = (target, type, fn, opts) => {
@@ -786,13 +786,13 @@
       }
       listeners.forEach((off) => off());
       listeners.length = 0;
-      delete window.__claudeVimium;
+      delete window.__hintvim;
     }
 
     on(window, 'keydown', onKeyDown, true);
 
-    window.__claudeVimium = { teardown, on, collectTargets, showHints, hideHints, hintState };
-    console.log('[claude-vimium] ready');
+    window.__hintvim = { teardown, on, collectTargets, showHints, hideHints, hintState };
+    console.log('[hintvim] ready');
   }
 
   init();

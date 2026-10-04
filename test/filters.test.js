@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { passesGeometry, passesStyle, orderByScreenPosition, latinChar, resolveHintChar } = require('../src/claude-vimium.js');
+const { passesGeometry, passesStyle, orderByScreenPosition, latinChar, resolveHintChar } = require('../src/hintvim.js');
 
 const VIEWPORT = { width: 1000, height: 800 };
 const rect = (o) => ({

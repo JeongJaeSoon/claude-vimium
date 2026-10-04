@@ -1,8 +1,8 @@
 {
-  "name": "vimium-hints",
-  "version": "0.3.0",
+  "name": "hintvim",
+  "version": "1.0.0",
   "author": { "name": "JeongJaeSoon" },
-  "homepage": "https://github.com/JeongJaeSoon/claude-vimium",
+  "homepage": "https://github.com/JeongJaeSoon/hintvim",
   "license": "MIT",
-  "description": "/vimium for the claude-vimium app: hint mode over the whole Claude Desktop window (Ctrl+;). macOS only."
+  "description": "Vimium-style hints over the Claude desktop app: /hintvim or Ctrl+;. Needs the hintvim app on macOS."
 }

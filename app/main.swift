@@ -1,7 +1,7 @@
 // Hint mode for the whole Claude Desktop window, driven through the macOS
 // Accessibility API: the web UI and the app chrome both appear in the AX tree,
-// which no mod surface reaches. Runs as a menu bar app; the vimium-hints mod
-// reaches it through the claude-vimium:// URL scheme.
+// which no mod surface reaches. Runs as a menu bar app; the hintvim mod
+// reaches it through the hintvim:// URL scheme.
 import AppKit
 import ApplicationServices
 import Carbon.HIToolbox
@@ -12,14 +12,14 @@ let accessibilitySettings = URL(
   string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
 
 if CommandLine.arguments.dropFirst().contains("--version") {
-  print("claude-vimium \(appVersion)")
+  print("hintvim \(appVersion)")
   exit(0)
 }
 
-// `claude-vimium doctor` reads this file: the app's own trust state is not
+// `hintvim doctor` reads this file: the app's own trust state is not
 // observable from another process.
 let logURL = FileManager.default.homeDirectoryForCurrentUser
-  .appendingPathComponent("Library/Logs/claude-vimium/app.log")
+  .appendingPathComponent("Library/Logs/hintvim/app.log")
 
 func log(_ message: String) {
   let line = "\(ISO8601DateFormatter().string(from: Date())) \(message)\n"
@@ -380,13 +380,13 @@ final class StatusMenu: NSObject, NSMenuDelegate {
   init(hintMode: HintMode) {
     self.hintMode = hintMode
     super.init()
-    item.button?.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "claude-vimium")
+    item.button?.image = Self.icon()
     let menu = NSMenu()
     menu.delegate = self
     let show = NSMenuItem(title: "Show Hints in Claude  (⌃;)", action: #selector(showHints), keyEquivalent: "")
-    let quit = NSMenuItem(title: "Quit claude-vimium", action: #selector(quit), keyEquivalent: "q")
+    let quit = NSMenuItem(title: "Quit hintvim", action: #selector(quit), keyEquivalent: "q")
     for entry in [show, accessibility, quit] { entry.target = self }
-    let about = NSMenuItem(title: "claude-vimium \(appVersion)", action: nil, keyEquivalent: "")
+    let about = NSMenuItem(title: "hintvim \(appVersion)", action: nil, keyEquivalent: "")
     about.isEnabled = false
     [about, .separator(), show, accessibility, .separator(), quit].forEach(menu.addItem)
     item.menu = menu
@@ -394,6 +394,32 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
   func menuWillOpen(_ menu: NSMenu) {
     accessibility.title = AXIsProcessTrusted() ? "Accessibility: allowed" : "Allow Accessibility…"
+  }
+
+  // The app icon's FJ hint tag, as a template so it follows light and dark menu bars;
+  // the letters are cut out of the tag because a template image has one colour.
+  private static func icon() -> NSImage {
+    let image = NSImage(size: NSSize(width: 22, height: 16), flipped: false) { _ in
+      let tag = NSBezierPath(roundedRect: NSRect(x: 1, y: 1, width: 20, height: 11.5), xRadius: 3, yRadius: 3)
+      let notch = NSBezierPath()
+      notch.move(to: NSPoint(x: 3, y: 11))
+      notch.line(to: NSPoint(x: 3.5, y: 15.5))
+      notch.line(to: NSPoint(x: 9.5, y: 11))
+      notch.close()
+      NSColor.black.setFill()
+      tag.fill()
+      notch.fill()
+      NSGraphicsContext.current?.cgContext.setBlendMode(.destinationOut)
+      let letters = NSAttributedString(string: "FJ", attributes: [
+        .font: NSFont.monospacedSystemFont(ofSize: 9.5, weight: .heavy), .kern: 0.5,
+      ])
+      let size = letters.size()
+      letters.draw(at: NSPoint(x: 11 - size.width / 2, y: 6.75 - size.height / 2))
+      return true
+    }
+    image.isTemplate = true
+    image.accessibilityDescription = "hintvim"
+    return image
   }
 
   @objc private func showHints() { hintMode.enter() }

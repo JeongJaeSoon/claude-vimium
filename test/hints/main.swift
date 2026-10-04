@@ -22,12 +22,12 @@ check(!isHintable(role: "AXButton", subrole: "AXMinimizeButton"), "minimize butt
 check(!isHintable(role: "AXButton", subrole: "AXFullScreenButton"), "full screen button excluded")
 check(!isHintable(role: "AXGroup", subrole: nil), "non-clickable role")
 
-check(urlCommand("claude-vimium://toggle") == .toggle, "toggle")
-check(urlCommand("CLAUDE-VIMIUM://Toggle/") == .toggle, "case and trailing slash")
-check(urlCommand("claude-vimium://") == .start, "bare scheme starts")
-check(urlCommand("claude-vimium://start") == .start, "start")
-check(urlCommand("claude-vimium://probe") == .probe, "probe")
-check(urlCommand("claude-vimium://rm-rf") == nil, "unknown command ignored")
+check(urlCommand("hintvim://toggle") == .toggle, "toggle")
+check(urlCommand("HINTVIM://Toggle/") == .toggle, "case and trailing slash")
+check(urlCommand("hintvim://") == .start, "bare scheme starts")
+check(urlCommand("hintvim://start") == .start, "start")
+check(urlCommand("hintvim://probe") == .probe, "probe")
+check(urlCommand("hintvim://rm-rf") == nil, "unknown command ignored")
 check(urlCommand("https://toggle") == nil, "other scheme ignored")
 
 print("hints OK")

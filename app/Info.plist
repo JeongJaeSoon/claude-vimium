@@ -2,10 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleIdentifier</key><string>io.github.jeongjaesoon.claude-vimium</string>
-  <key>CFBundleName</key><string>ClaudeVimium</string>
-  <key>CFBundleDisplayName</key><string>claude-vimium</string>
-  <key>CFBundleExecutable</key><string>ClaudeVimium</string>
+  <key>CFBundleIdentifier</key><string>io.github.jeongjaesoon.hintvim</string>
+  <key>CFBundleName</key><string>Hintvim</string>
+  <key>CFBundleDisplayName</key><string>hintvim</string>
+  <key>CFBundleExecutable</key><string>Hintvim</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>@VERSION@</string>
   <key>CFBundleVersion</key><string>@VERSION@</string>
@@ -14,8 +15,8 @@
   <key>CFBundleURLTypes</key>
   <array>
     <dict>
-      <key>CFBundleURLName</key><string>io.github.jeongjaesoon.claude-vimium</string>
-      <key>CFBundleURLSchemes</key><array><string>claude-vimium</string></array>
+      <key>CFBundleURLName</key><string>io.github.jeongjaesoon.hintvim</string>
+      <key>CFBundleURLSchemes</key><array><string>hintvim</string></array>
     </dict>
   </array>
 </dict>

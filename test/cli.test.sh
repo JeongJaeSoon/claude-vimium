@@ -1,13 +1,13 @@
 #!/bin/sh
-# The mods switch logic of bin/claude-vimium, against a throwaway HOME.
+# The mods switch logic of bin/hintvim, against a throwaway HOME.
 set -eu
 
-cli="$(cd "$(dirname "$0")/.." && pwd)/bin/claude-vimium"
+cli="$(cd "$(dirname "$0")/.." && pwd)/bin/hintvim"
 home=$(mktemp -d)
 trap 'rm -rf "$home"' EXIT
 settings="$home/.claude/settings.json"
 desktop="$home/Library/Application Support/Claude/claude-code"
-marker="$home/Library/Application Support/claude-vimium/added-mods-switch"
+marker="$home/Library/Application Support/hintvim/added-mods-switch"
 
 run() { HOME="$home" PATH=/usr/bin:/bin:"$(dirname "$(command -v jq)")" sh "$cli" "$@"; }
 fail() { echo "FAIL: $*"; exit 1; }
@@ -74,7 +74,52 @@ run mods >/dev/null
 rm -r "$desktop/2.1.284" && mkdir -p "$desktop/2.1.1000"
 run mods | grep -q "removed" || fail "2.1.1000: expected removed"
 
-run version | grep -q "claude-vimium dev" || fail "version"
+# setup --app-only leaves the plugin out: the login item then never touches the switch.
+stub="$home/stub" && mkdir -p "$stub" && printf '#!/bin/sh\n' >"$stub/open" && chmod +x "$stub/open"
+login() { HOME="$home" PATH="$stub":/usr/bin:/bin:"$(dirname "$(command -v jq)")" sh "$cli" login; }
+rm "$settings" && printf '{}\n' >"$settings" && rm -f "$marker" && rm -r "$desktop/2.1.1000" && mkdir -p "$desktop/2.1.280"
+touch "$home/Library/Application Support/hintvim/app-only"
+login
+[ "$(switch)" = unset ] || fail "app-only login: switch added"
+run doctor 2>/dev/null | grep -q "skipped by setup --app-only" || fail "app-only doctor: plugin not reported as skipped"
+rm "$home/Library/Application Support/hintvim/app-only"
+login
+[ "$(switch)" = 1 ] || fail "login: switch not added"
+run setup --bogus 2>/dev/null && fail "setup with an unknown option should fail"
+
+# setup --app-only after a full setup takes back the switch that setup added. A copy of the
+# command with a stand-in app, and stubs for the system tools, keep the real login item untouched.
+mkdir -p "$home/repo/bin" "$home/repo/build/Hintvim.app"
+cp "$cli" "$home/repo/bin/hintvim"
+for t in pkill launchctl; do printf '#!/bin/sh\n' >"$stub/$t" && chmod +x "$stub/$t"; done
+setup() { HOME="$home" PATH="$stub":/usr/bin:/bin:"$(dirname "$(command -v jq)")" sh "$home/repo/bin/hintvim" setup "$@"; }
+[ "$(switch)" = 1 ] && [ -f "$marker" ] || fail "app-only setup: fixture lacks the added switch"
+setup --app-only --bogus 2>/dev/null && fail "setup with an extra operand should fail"
+[ ! -e "$home/Library/Application Support/hintvim/app-only" ] || fail "rejected setup changed state"
+setup --app-only | grep -q "mods switch: removed" || fail "app-only setup: expected the switch removed"
+[ "$(switch)" = unset ] || fail "app-only setup: switch still set"
+[ -f "$home/Library/Application Support/hintvim/app-only" ] || fail "app-only setup: marker missing"
+
+# A switch the user changed after setup added it stays, and setup no longer claims it.
+setup >/dev/null && [ "$(switch)" = 1 ] || fail "full setup: switch not added"
+jq '.["env"].CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = false' "$settings" >"$settings.tmp" && cat "$settings.tmp" >"$settings"
+setup --app-only >/dev/null
+[ "$(switch)" = false ] || fail "app-only setup: user's change overwritten"
+[ ! -e "$marker" ] || fail "app-only setup: stale ownership marker"
+
+# What claude-vimium (before 1.0.0) left goes away, and its ownership of the switch carries over.
+old_state="$home/Library/Application Support/claude-vimium"
+old_agent="$home/Library/LaunchAgents/io.github.jeongjaesoon.claude-vimium.plist"
+printf '#!/bin/sh\n' >"$stub/tccutil" && chmod +x "$stub/tccutil"
+jq '.["env"].CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = "1"' "$settings" >"$settings.tmp" && cat "$settings.tmp" >"$settings"
+mkdir -p "$old_state" "$home/Library/Logs/claude-vimium" "$(dirname "$old_agent")"
+: >"$old_state/added-mods-switch" && : >"$old_agent"
+out=$(setup --app-only)
+echo "$out" | grep -q "claude-vimium login item: removed" || fail "migration: old login item not reported"
+[ ! -e "$old_agent" ] && [ ! -e "$old_state" ] && [ ! -e "$home/Library/Logs/claude-vimium" ] || fail "migration: claude-vimium files left"
+[ "$(switch)" = unset ] || fail "migration: switch claude-vimium added was not taken back"
+
+run version | grep -q "hintvim dev" || fail "version"
 run bogus 2>/dev/null && fail "unknown command should fail"
 
 echo "cli OK"
