@@ -368,7 +368,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
   init(hintMode: HintMode) {
     self.hintMode = hintMode
     super.init()
-    item.button?.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "claude-vimium")
+    item.button?.image = Self.icon()
     let menu = NSMenu()
     menu.delegate = self
     let show = NSMenuItem(title: "Show Hints in Claude  (⌃;)", action: #selector(showHints), keyEquivalent: "")
@@ -382,6 +382,32 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
   func menuWillOpen(_ menu: NSMenu) {
     accessibility.title = AXIsProcessTrusted() ? "Accessibility: allowed" : "Allow Accessibility…"
+  }
+
+  // The app icon's FJ hint tag, as a template so it follows light and dark menu bars;
+  // the letters are cut out of the tag because a template image has one colour.
+  private static func icon() -> NSImage {
+    let image = NSImage(size: NSSize(width: 22, height: 16), flipped: false) { _ in
+      let tag = NSBezierPath(roundedRect: NSRect(x: 1, y: 1, width: 20, height: 11.5), xRadius: 3, yRadius: 3)
+      let notch = NSBezierPath()
+      notch.move(to: NSPoint(x: 3, y: 11))
+      notch.line(to: NSPoint(x: 3.5, y: 15.5))
+      notch.line(to: NSPoint(x: 9.5, y: 11))
+      notch.close()
+      tag.append(notch)
+      NSColor.black.setFill()
+      tag.fill()
+      NSGraphicsContext.current?.cgContext.setBlendMode(.destinationOut)
+      let letters = NSAttributedString(string: "FJ", attributes: [
+        .font: NSFont.monospacedSystemFont(ofSize: 9.5, weight: .heavy), .kern: 0.5,
+      ])
+      let size = letters.size()
+      letters.draw(at: NSPoint(x: 11 - size.width / 2, y: 6.75 - size.height / 2))
+      return true
+    }
+    image.isTemplate = true
+    image.accessibilityDescription = "claude-vimium"
+    return image
   }
 
   @objc private func showHints() { hintMode.enter() }

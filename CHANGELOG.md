@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-04
+
+### Added
+
+- An app icon, shown in Finder, Spotlight and System Settings, including in the app Homebrew builds from source.
+- A README header with the icon, and a social preview image at `docs/assets/social-preview.png`.
+
+### Changed
+
+- The menu bar item uses the icon's motif as a template image instead of the generic keyboard symbol, so it follows light and dark menu bars.
+
 ## [0.3.1] - 2026-10-04
 
 ### Added
@@ -40,5 +51,7 @@ Unreleased preview: the plugin built and started an Accessibility helper on each
 
 DevTools snippet (`src/claude-vimium.js`) with hint mode over the web page, settings and help panels.
 
-[Unreleased]: https://github.com/JeongJaeSoon/claude-vimium/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/JeongJaeSoon/claude-vimium/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/JeongJaeSoon/claude-vimium/compare/v0.3.1...v1.0.0
+[0.3.1]: https://github.com/JeongJaeSoon/claude-vimium/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/JeongJaeSoon/claude-vimium/releases/tag/v0.3.0
