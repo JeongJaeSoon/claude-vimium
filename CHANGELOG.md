@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `Ctrl+;` reopens Claude's window when the last one was closed, instead of doing nothing ([#14](https://github.com/JeongJaeSoon/hintvim/issues/14)).
+
 ## [1.0.0] - 2026-10-04
 
 ### Changed
