@@ -1,6 +1,20 @@
-# claude-vimium
+<p align="center">
+  <a href="https://github.com/JeongJaeSoon/claude-vimium/releases"><img src="docs/assets/icon.png" width="128" alt="claude-vimium icon"></a>
+</p>
 
-Keyboard navigation for [Claude Desktop](https://claude.ai/download), in the spirit of [Vimium](https://vimium.github.io/).
+<h1 align="center">claude-vimium</h1>
+
+<p align="center">
+  <a href="https://github.com/JeongJaeSoon/claude-vimium/actions/workflows/ci.yml"><img src="https://github.com/JeongJaeSoon/claude-vimium/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+</p>
+
+**Keyboard navigation for [Claude Desktop](https://claude.ai/download), in the spirit of [Vimium](https://vimium.github.io/).**
+
+> Press `Ctrl+;`, type a label, and that button is pressed.
+
+---
+
+## What is claude-vimium?
 
 claude-vimium is a small macOS menu bar app. Press `Ctrl+;` and every clickable thing in the Claude window gets a short label: the sidebar, the title bar, the model and mode menus, each message's buttons. Type the label and that element is pressed. No mouse.
 

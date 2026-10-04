@@ -6,6 +6,7 @@
   <key>CFBundleName</key><string>ClaudeVimium</string>
   <key>CFBundleDisplayName</key><string>claude-vimium</string>
   <key>CFBundleExecutable</key><string>ClaudeVimium</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>@VERSION@</string>
   <key>CFBundleVersion</key><string>@VERSION@</string>
