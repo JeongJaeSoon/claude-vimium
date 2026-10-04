@@ -18,7 +18,7 @@
 
 hintvim is a small macOS menu bar app. Press `Ctrl+;` and every clickable thing in the Claude window gets a short label: the sidebar, the title bar, the model and mode menus, each message's buttons. Type the label and that element is pressed. No mouse.
 
-![Ctrl+; puts labels on the sidebar; typing ZT opens the More menu](docs/demo.gif)
+![Ctrl+; puts labels on the sidebar; typing CE opens the More menu](docs/demo.gif)
 
 ```
 Ctrl+;            →  labels appear on every button, link, and input
