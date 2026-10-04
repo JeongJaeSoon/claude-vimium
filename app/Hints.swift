@@ -26,7 +26,7 @@ let letterForKeyCode: [UInt16: Character] = [
   37: "l", 38: "j", 40: "k", 45: "n", 46: "m",
 ]
 
-// Port of generateLabels in src/claude-vimium.js: shortest labels, none a prefix of another.
+// Port of generateLabels in src/hintvim.js: shortest labels, none a prefix of another.
 func generateLabels(_ count: Int, alphabet: [Character] = alphabet) -> [String] {
   let n = alphabet.count
   let total = min(count, n * n)
@@ -44,10 +44,10 @@ enum URLCommand: Equatable {
   case start, toggle, probe
 }
 
-// claude-vimium://toggle from /vimium; a bare claude-vimium:// only launches the app;
-// probe logs what hint mode would label, for `claude-vimium doctor`.
+// hintvim://toggle from /hintvim; a bare hintvim:// only launches the app;
+// probe logs what hint mode would label, for `hintvim doctor`.
 func urlCommand(_ url: String) -> URLCommand? {
-  let prefix = "claude-vimium://"
+  let prefix = "hintvim://"
   guard url.lowercased().hasPrefix(prefix) else { return nil }
   var rest = url.dropFirst(prefix.count).lowercased()
   if rest.hasSuffix("/") { rest.removeLast() }

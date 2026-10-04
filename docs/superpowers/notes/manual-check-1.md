@@ -5,8 +5,8 @@
 ## 준비
 
 1. Claude Desktop에서 `Cmd+Alt+I` → Console 탭
-2. `src/claude-vimium.js` **전체 내용**을 붙여넣고 Enter
-3. 콘솔에 `[claude-vimium] ready`가 찍히는지 확인
+2. `src/hintvim.js` **전체 내용**을 붙여넣고 Enter
+3. 콘솔에 `[hintvim] ready`가 찍히는지 확인
 
 설치는 아직 하지 않는다. 콘솔 실행만으로 전부 확인된다. 지우려면 `Cmd+R`.
 
@@ -15,14 +15,14 @@
 | # | 확인 | 기대 |
 |---|---|---|
 | A1 | 같은 코드를 한 번 더 붙여넣기 | `ready`가 두 번째로 찍히고, 에러 없음 |
-| A2 | `window.__claudeVimium.teardown` 입력 | 함수가 나온다 |
+| A2 | `window.__hintvim.teardown` 입력 | 함수가 나온다 |
 
 ## B. 힌트 대상 탐색 (Task 4)
 
 콘솔에서:
 
 ```javascript
-window.__claudeVimium.collectTargets().length
+window.__hintvim.collectTargets().length
 ```
 
 | # | 확인 | 기대 |
@@ -31,7 +31,7 @@ window.__claudeVimium.collectTargets().length
 | B2 | 아래 명령으로 육안 확인 | 실제 버튼·링크에 테두리가 생긴다. 큰 컨테이너 하나가 통째로 잡히지 않는다 |
 
 ```javascript
-window.__claudeVimium.collectTargets().forEach(el => el.style.outline = '2px solid lime')
+window.__hintvim.collectTargets().forEach(el => el.style.outline = '2px solid lime')
 ```
 
 확인 후 `Cmd+R`로 리로드하고, 코드를 다시 붙여넣는다.

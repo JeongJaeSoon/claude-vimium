@@ -6,7 +6,7 @@ Thanks for helping. Bug reports, compatibility reports after a Claude Desktop up
 
 ```bash
 make test                       # Node, shell and Swift unit tests
-make app                        # builds build/ClaudeVimium.app
+make app                        # builds build/Hintvim.app
 claude plugin validate plugin
 d=$(mktemp -d); (cd "$d" && claude plugin test "$OLDPWD/plugin"); rm -rf "$d"
 ```
@@ -23,11 +23,11 @@ The drawing, the key handling and the Accessibility walk have no automated tests
 - Nothing you type while labels show reaches the prompt box, with a Korean or Japanese input source too.
 - `Cmd+Tab` leaves hint mode and still switches apps; clicking another app leaves hint mode.
 - Moving or resizing the window while labels show moves them with it.
-- `claude-vimium doctor` prints only `ok` lines.
+- `hintvim doctor` prints only `ok` lines.
 
 Every build is a new app to macOS, so allow Accessibility again after each rebuild (remove the old entry with `−`).
 
-## Changes to `bin/claude-vimium`
+## Changes to `bin/hintvim`
 
 It edits `~/.claude/settings.json`. Add a case to `test/cli.test.sh` for any new edit, and keep these rules: never drop a key the user has, write through symlinks, and remove only what setup added.
 
@@ -39,6 +39,6 @@ It edits `~/.claude/settings.json`. Add a case to `test/cli.test.sh` for any new
 
 ## Releasing (maintainers)
 
-1. Move the `Unreleased` notes under a new version in `CHANGELOG.md`, and set the same version in `plugin/.claude-plugin/plugin.json` and in the `url` of `packaging/claude-vimium.rb`.
+1. Move the `Unreleased` notes under a new version in `CHANGELOG.md`, and set the same version in `plugin/.claude-plugin/plugin.json` and in the `url` of `packaging/hintvim.rb`.
 2. Merge, then push a tag `vX.Y.Z` on `main`. The release workflow checks the versions and publishes the GitHub release.
 3. Publish the formula to `JeongJaeSoon/homebrew-tap` with `sh scripts/publish-tap.sh vX.Y.Z`. It fills in the tarball's sha256. With a `TAP_TOKEN` secret set, the release workflow runs it for you.

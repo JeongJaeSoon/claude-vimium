@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { validateAlphabet, validateLeader, loadConfig, DEFAULT_CONFIG } = require('../src/claude-vimium.js');
+const { validateAlphabet, validateLeader, loadConfig, DEFAULT_CONFIG } = require('../src/hintvim.js');
 
 // valid
 assert.deepEqual(validateAlphabet('asfgqwertzxcv'), { ok: true });

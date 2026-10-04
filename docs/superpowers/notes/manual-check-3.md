@@ -7,13 +7,13 @@
 **코드가 바뀌었으니 스니펫을 먼저 갱신한다.** 이전에 저장해둔 스니펫에는 이번 수정이 없다.
 
 ```bash
-pbcopy < src/claude-vimium.js
+pbcopy < src/hintvim.js
 ```
 
 1. Claude Desktop에서 `Cmd+Alt+I` → **Sources → Snippets**
-2. 기존 `claude-vimium` 스니펫을 열고 **전체 선택(`Cmd+A`) 후 붙여넣기(`Cmd+V`)** 로 내용을 갈아끼운다
+2. 기존 `hintvim` 스니펫을 열고 **전체 선택(`Cmd+A`) 후 붙여넣기(`Cmd+V`)** 로 내용을 갈아끼운다
 3. `Cmd+S`로 저장
-4. `Cmd+Enter`로 실행 → 콘솔에 `[claude-vimium] ready`
+4. `Cmd+Enter`로 실행 → 콘솔에 `[hintvim] ready`
 
 **그다음 앱 창을 클릭해 포커스를 옮긴다.** DevTools에 포커스가 있으면 키가 전부 DevTools로 간다.
 
@@ -27,7 +27,7 @@ pbcopy < src/claude-vimium.js
 2. 콘솔(Console 탭)에서:
 
 ```js
-document.querySelectorAll('#claude-vimium-overlay').length
+document.querySelectorAll('#hintvim-overlay').length
 ```
 
 **기대: `1`**

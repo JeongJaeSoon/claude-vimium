@@ -1,4 +1,4 @@
-# claude-vimium 설계
+# hintvim 설계
 
 작성일: 2026-08-16
 개정: 2026-08-16 — Codex 리뷰 반영 (키 충돌 해소, 오버레이 생명주기, IME, 라벨 알고리즘 상세화)
@@ -51,11 +51,11 @@ Vencord/BetterDiscord가 asar을 패치해야 하는 것과 달리, 무결성 �
 
 ## 4. 저장소 구조
 
-`~/workspace/project/claude-vimium`에 새 git 저장소로 만든다.
+`~/workspace/project/hintvim`에 새 git 저장소로 만든다.
 
 ```
-claude-vimium/
-├── src/claude-vimium.js   # 확장 본체 (단일 파일, 의존성 0)
+hintvim/
+├── src/hintvim.js   # 확장 본체 (단일 파일, 의존성 0)
 ├── install.sh             # 설치 / 제거 / 상태 / LaunchAgent 등록
 ├── docs/
 └── README.md
@@ -63,7 +63,7 @@ claude-vimium/
 
 빌드 스텝과 외부 의존성을 두지 않는다. 힌트 모드와 스크롤을 합쳐도 300줄 안쪽이라 번들러가 벌어들이는 것이 없고, 남의 앱 번들을 수정하는 도구인 만큼 소스가 그대로 읽히는 편이 신뢰에 유리하다. 코드가 실제로 커지면 그때 TypeScript + 번들러로 옮긴다.
 
-## 5. 확장 본체 (`src/claude-vimium.js`)
+## 5. 확장 본체 (`src/hintvim.js`)
 
 ### 5.1 모드와 키
 
@@ -191,9 +191,9 @@ button, a[href], input, textarea, select,
 
 설치 동작:
 
-1. `index.html`을 `index.html.claude-vimium.bak`으로 백업 (기존 백업이 있으면 덮어쓰지 않는다 — 패치된 파일을 백업해 원본을 잃는 것을 막는다)
-2. `src/claude-vimium.js`를 `ion-dist/claude-vimium.js`로 복사
-3. `</body>` 직전에 `<script src="/claude-vimium.js"></script>` 삽입. 이미 삽입되어 있으면 중복 주입하지 않는다
+1. `index.html`을 `index.html.hintvim.bak`으로 백업 (기존 백업이 있으면 덮어쓰지 않는다 — 패치된 파일을 백업해 원본을 잃는 것을 막는다)
+2. `src/hintvim.js`를 `ion-dist/hintvim.js`로 복사
+3. `</body>` 직전에 `<script src="/hintvim.js"></script>` 삽입. 이미 삽입되어 있으면 중복 주입하지 않는다
 4. LaunchAgent 등록 (`--no-auto`가 아닌 경우)
 5. 무엇을 어디에 설치했는지 명시적으로 출력
 
@@ -245,7 +245,7 @@ v2에서 `install.sh`를 호출하는 더블클릭용 `.command` 래퍼를 얹�
 
 > **해소됐고, 예상과 다른 방식이었다 (2026-08-23).** CSP는 문제가 아니었다. 실제 문제는 `ion-dist/index.html`이 애초에 로드되지 않는다는 것이었다 — 앱이 원격 `claude.ai`를 렌더링한다. 아래 서술은 그 사실을 모르던 시점의 기록이다.
 
-**CSP가 `<script src="/claude-vimium.js">`를 허용하는지 확인되지 않았다.** `app.asar`에 host allowlist 기반으로 `script-src` 디렉티브를 구성하는 코드가 있으나, 로컬 앱 스킴에서 로드되는 스크립트가 허용되는지는 실행해봐야 안다.
+**CSP가 `<script src="/hintvim.js">`를 허용하는지 확인되지 않았다.** `app.asar`에 host allowlist 기반으로 `script-src` 디렉티브를 구성하는 코드가 있으나, 로컬 앱 스킴에서 로드되는 스크립트가 허용되는지는 실행해봐야 안다.
 
 **이것을 구현 1단계로 둔다.** 막히면 `install.sh`가 `<script src>` 대신 인라인 `<script>`로 파일 내용을 직접 삽입하는 방식으로 폴백한다. 여기서 결과가 갈리면 설치 스크립트의 상당 부분이 바뀌므로 다른 작업보다 먼저 확인해야 한다.
 

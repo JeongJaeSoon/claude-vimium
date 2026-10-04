@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { generateLabels } = require('../src/claude-vimium.js');
+const { generateLabels } = require('../src/hintvim.js');
 
 function noPrefixCollision(labels) {
   return labels.every((a) => labels.every((b) => a === b || !b.startsWith(a)));
