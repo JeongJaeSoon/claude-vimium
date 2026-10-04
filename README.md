@@ -194,3 +194,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the manual checks a change to the app
 ## License
 
 [MIT](LICENSE)
+
+## Support
+
+If hintvim saves you some clicks, you can [sponsor its development](https://github.com/sponsors/JeongJaeSoon).
