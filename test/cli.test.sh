@@ -74,6 +74,39 @@ run mods >/dev/null
 rm -r "$desktop/2.1.284" && mkdir -p "$desktop/2.1.1000"
 run mods | grep -q "removed" || fail "2.1.1000: expected removed"
 
+# setup --app-only leaves the plugin out: the login item then never touches the switch.
+stub="$home/stub" && mkdir -p "$stub" && printf '#!/bin/sh\n' >"$stub/open" && chmod +x "$stub/open"
+login() { HOME="$home" PATH="$stub":/usr/bin:/bin:"$(dirname "$(command -v jq)")" sh "$cli" login; }
+rm "$settings" && printf '{}\n' >"$settings" && rm -f "$marker" && rm -r "$desktop/2.1.1000" && mkdir -p "$desktop/2.1.280"
+touch "$home/Library/Application Support/claude-vimium/app-only"
+login
+[ "$(switch)" = unset ] || fail "app-only login: switch added"
+run doctor 2>/dev/null | grep -q "skipped by setup --app-only" || fail "app-only doctor: plugin not reported as skipped"
+rm "$home/Library/Application Support/claude-vimium/app-only"
+login
+[ "$(switch)" = 1 ] || fail "login: switch not added"
+run setup --bogus 2>/dev/null && fail "setup with an unknown option should fail"
+
+# setup --app-only after a full setup takes back the switch that setup added. A copy of the
+# command with a stand-in app, and stubs for the system tools, keep the real login item untouched.
+mkdir -p "$home/repo/bin" "$home/repo/build/ClaudeVimium.app"
+cp "$cli" "$home/repo/bin/claude-vimium"
+for t in pkill launchctl; do printf '#!/bin/sh\n' >"$stub/$t" && chmod +x "$stub/$t"; done
+setup() { HOME="$home" PATH="$stub":/usr/bin:/bin:"$(dirname "$(command -v jq)")" sh "$home/repo/bin/claude-vimium" setup "$@"; }
+[ "$(switch)" = 1 ] && [ -f "$marker" ] || fail "app-only setup: fixture lacks the added switch"
+setup --app-only --bogus 2>/dev/null && fail "setup with an extra operand should fail"
+[ ! -e "$home/Library/Application Support/claude-vimium/app-only" ] || fail "rejected setup changed state"
+setup --app-only | grep -q "mods switch: removed" || fail "app-only setup: expected the switch removed"
+[ "$(switch)" = unset ] || fail "app-only setup: switch still set"
+[ -f "$home/Library/Application Support/claude-vimium/app-only" ] || fail "app-only setup: marker missing"
+
+# A switch the user changed after setup added it stays, and setup no longer claims it.
+setup >/dev/null && [ "$(switch)" = 1 ] || fail "full setup: switch not added"
+jq '.["env"].CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = false' "$settings" >"$settings.tmp" && cat "$settings.tmp" >"$settings"
+setup --app-only >/dev/null
+[ "$(switch)" = false ] || fail "app-only setup: user's change overwritten"
+[ ! -e "$marker" ] || fail "app-only setup: stale ownership marker"
+
 run version | grep -q "claude-vimium dev" || fail "version"
 run bogus 2>/dev/null && fail "unknown command should fail"
 

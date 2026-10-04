@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-04
+
+### Added
+
+- `claude-vimium setup --app-only` sets up the app and its login item without the Claude plugin or the mods switch. `Ctrl+;` needs only the app.
+- A demo GIF at the top of the README, and a README section on why claude-vimium is an app and not a Claude Code mod.
+
+### Changed
+
+- `claude-vimium doctor` reports the plugin as skipped after `setup --app-only` instead of failing.
+- When Claude Desktop has no window open, `claude-vimium doctor` says to click Claude in the Dock.
+- The README describes claude-vimium as an app first, the plugin as optional, and lists two more fixes: a closed Claude window, and a tap that `brew untap` refuses to remove.
+
 ## [0.3.0] - 2026-10-03
 
 First public release.

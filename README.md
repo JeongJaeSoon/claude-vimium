@@ -2,7 +2,9 @@
 
 Keyboard navigation for [Claude Desktop](https://claude.ai/download), in the spirit of [Vimium](https://vimium.github.io/).
 
-Press `Ctrl+;` and every clickable thing in the Claude window gets a short label: the sidebar, the title bar, the model and mode menus, each message's buttons. Type the label and that element is pressed. No mouse.
+claude-vimium is a small macOS menu bar app. Press `Ctrl+;` and every clickable thing in the Claude window gets a short label: the sidebar, the title bar, the model and mode menus, each message's buttons. Type the label and that element is pressed. No mouse.
+
+![Ctrl+; puts labels on the sidebar; typing ZT opens the More menu](docs/demo.gif)
 
 ```
 Ctrl+;            →  labels appear on every button, link, and input
@@ -33,9 +35,12 @@ The formula builds the app from source on your Mac, so it needs no Developer ID 
 
 Setup is idempotent, logs each step to `~/Library/Logs/claude-vimium/setup.log`, and `claude-vimium uninstall` reverts all of it.
 
-- Installs the **vimium-hints** Claude plugin: `claude plugin marketplace add JeongJaeSoon/claude-vimium` and `claude plugin install vimium-hints@claude-vimium`. It gives Desktop's Code tab the `/vimium` command.
+- Adds a login item, `~/Library/LaunchAgents/io.github.jeongjaesoon.claude-vimium.plist`, and starts the app. This is all `Ctrl+;` needs.
+- Installs the optional **vimium-hints** Claude plugin: `claude plugin marketplace add JeongJaeSoon/claude-vimium` and `claude plugin install vimium-hints@claude-vimium`. It gives Desktop's Code tab the `/vimium` command.
 - **Only if** Claude Desktop bundles a Claude Code older than 2.1.287, adds `"CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1"` to `env` in `~/.claude/settings.json`, after a backup. Older releases load plugin mods only behind this switch; from [2.1.287 they load by default](https://code.claude.com/docs/en/plugins/mods/overview#turn-mods-on-or-off) and ignore it. Setup records that it added the switch, removes it once Desktop is on 2.1.287 or later, and never touches a switch you set yourself.
-- Adds a login item, `~/Library/LaunchAgents/io.github.jeongjaesoon.claude-vimium.plist`. At each login it starts the app and re-checks the switch, because a Claude Desktop update replaces its bundled Claude Code.
+- At each login the login item starts the app and re-checks the switch, because a Claude Desktop update replaces its bundled Claude Code.
+
+To keep `~/.claude` untouched, run `claude-vimium setup --app-only`: you get `Ctrl+;` and the menu bar icon, without the plugin, the switch, or `/vimium`.
 
 ### Install from Claude instead
 
@@ -100,8 +105,9 @@ Run `claude-vimium doctor`, or `/vimium-hints:doctor` in a Code session. Doctor 
 
 | Symptom | Fix |
 |---|---|
-| `Ctrl+;` shows nothing | Claude must be the frontmost app. If an input method is composing in the prompt box (an underlined character or a candidate list), press `Esc` first. Then run `claude-vimium doctor`. |
+| `Ctrl+;` shows nothing | Claude must be the frontmost app, with a window open: if you closed the window, click Claude in the Dock. Doctor then reports `hint targets: Claude Desktop has no window`. Making `Ctrl+;` reopen the window itself is tracked in [#14](https://github.com/JeongJaeSoon/claude-vimium/issues/14). If an input method is composing in the prompt box (an underlined character or a candidate list), press `Esc` first. Then run `claude-vimium doctor`. |
 | Accessibility is on but nothing happens | The entry belongs to an older build. Remove it with **−**, then `claude-vimium stop && claude-vimium start` and allow it again. |
+| `brew untap jeongjaesoon/tap` refuses | The tap holds other formulae you have installed. Leave it tapped; `brew uninstall claude-vimium` is enough. |
 | `/vimium` is unknown | The mod loads only in a session started after setup, and only in **Local** sessions. Start a new one. Still missing: `claude-vimium doctor` says whether mods can load. Anthropic can turn installed mods off remotely, and then `/vimium` is gone until they turn them back on; `Ctrl+;` keeps working, since the app does not depend on the plugin. |
 
 ## Compatibility
@@ -132,8 +138,18 @@ A plugin alone can't do hint mode. Claude Code mods hook the Claude Code engine,
 macOS's Accessibility API can see the window. Asked through `AXManualAccessibility`, Chromium exposes the full tree of Claude's window, web content and chrome alike, and `AXPress` fires the same handlers a click would. So the work splits:
 
 - **[`app/`](app)** is the menu bar app: a Carbon hotkey for `Ctrl+;`, an Accessibility walk over clickable roles clipped to visible scroll areas, a transparent panel that draws the labels, and an event tap that takes the keys while they show. It needs only the Accessibility permission, not Input Monitoring.
-- **[`plugin/`](plugin)** is the mod. It reaches the app through the `claude-vimium://` URL scheme, which also starts the app if it isn't running.
+- **[`plugin/`](plugin)** is the optional mod. It reaches the app through the `claude-vimium://` URL scheme, which also starts the app if it isn't running.
 - **[`bin/claude-vimium`](bin/claude-vimium)** sets up, checks, and removes everything around them.
+
+### Why an app and not a Claude Code mod?
+
+Mods were the first plan, and the plugin is one. But a mod can't do this job:
+
+- It draws only inside the Claude Code engine's own surfaces, so the sidebar, the title bar and the model menu are out of reach.
+- It can't register a global key, so there's no `Ctrl+;`.
+- Anthropic can turn installed mods off remotely, and then `/vimium` disappears.
+
+Injecting a script into the window is closed too: the window renders remote claude.ai, the app is a hardened binary that refuses debuggers and injected libraries, and it quits when started with remote-debugging flags. The Accessibility API works from outside the app, so a Desktop update or a mods switch-off leaves `Ctrl+;` working.
 
 ## Without installing anything
 
