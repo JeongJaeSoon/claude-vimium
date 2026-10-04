@@ -121,7 +121,7 @@ Run `hintvim doctor`, or `/hintvim:doctor` in a Code session. Doctor checks the 
 
 | Symptom | Fix |
 |---|---|
-| `Ctrl+;` shows nothing | Claude must be the frontmost app, with a window open: if you closed the window, click Claude in the Dock. Doctor then reports `hint targets: Claude Desktop has no window`. Making `Ctrl+;` reopen the window itself is tracked in [#14](https://github.com/JeongJaeSoon/hintvim/issues/14). If an input method is composing in the prompt box (an underlined character or a candidate list), press `Esc` first. Then run `hintvim doctor`. |
+| `Ctrl+;` shows nothing | Claude must be the frontmost app. If you closed its last window, `Ctrl+;` reopens it; if no window comes back, click Claude in the Dock. If an input method is composing in the prompt box (an underlined character or a candidate list), press `Esc` first. Then run `hintvim doctor`. |
 | Accessibility is on but nothing happens | The entry belongs to an older build. Remove it with **−**, then `hintvim stop && hintvim start` and allow it again. |
 | `brew untap jeongjaesoon/tap` refuses | The tap holds other formulae you have installed. Leave it tapped; `brew uninstall hintvim` is enough. |
 | `/hintvim` is unknown | The mod loads only in a session started after setup, and only in **Local** sessions. Start a new one. Still missing: `hintvim doctor` says whether mods can load. Anthropic can turn installed mods off remotely, and then `/hintvim` is gone until they turn them back on; `Ctrl+;` keeps working, since the app does not depend on the plugin. |

@@ -131,7 +131,7 @@ final class HintMode {
     isActive ? exit() : enter()
   }
 
-  func enter() {
+  func enter(reopened: Bool = false) {
     guard !isActive, pendingEntry == nil else { return }
     guard AXIsProcessTrusted() else {
       log("hint mode: accessibility not granted")
@@ -156,7 +156,19 @@ final class HintMode {
     guard let window = (attr(root, kAXFocusedWindowAttribute) as! AXUIElement?)
       ?? (attr(root, kAXWindowsAttribute) as? [AXUIElement])?.first,
       let windowRect = frame(of: window)
-    else { return }
+    else {
+      guard !reopened, let url = app.bundleURL else { return log("hint mode: Claude Desktop has no window") }
+      // Claude stays running after its last window closes; a relaunch request reopens one, as a Dock click does.
+      log("hint mode: Claude Desktop has no window, reopening it")
+      NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+      let work = DispatchWorkItem { [weak self] in
+        self?.pendingEntry = nil
+        self?.enter(reopened: true)
+      }
+      pendingEntry = work
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: work)
+      return
+    }
     self.window = window
     observe(window, pid: app.processIdentifier)
     show(windowRect: windowRect, found: collectTargets(in: window))
