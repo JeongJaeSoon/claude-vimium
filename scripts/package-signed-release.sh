@@ -22,8 +22,7 @@ security list-keychains -d user >"$tmp/original-keychains"
 
 cleanup() {
   if [ -f "$tmp/original-keychains" ]; then
-    sed 's/^[[:space:]]*"//; s/"$//' "$tmp/original-keychains" |
-      xargs security list-keychains -d user -s >/dev/null 2>&1 || true
+    xargs security list-keychains -d user -s <"$tmp/original-keychains" >/dev/null 2>&1 || true
   fi
   security delete-keychain "$keychain" >/dev/null 2>&1 || true
   rm -rf "$tmp"
@@ -35,7 +34,7 @@ security create-keychain -p "$keychain_password" "$keychain"
 security set-keychain-settings -lut 21600 "$keychain"
 security unlock-keychain -p "$keychain_password" "$keychain"
 { printf '"%s"\n' "$keychain"; cat "$tmp/original-keychains"; } |
-  sed 's/^[[:space:]]*"//; s/"$//' | xargs security list-keychains -d user -s
+  xargs security list-keychains -d user -s
 security import "$tmp/certificate.p12" -k "$keychain" \
   -P "$APPLE_SIGNING_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
 security set-key-partition-list -S apple-tool:,apple:,codesign: \
@@ -71,6 +70,7 @@ ditto -c -k --keepParent "$app" "$tmp/Hintvim-notarization.zip"
 xcrun notarytool submit "$tmp/Hintvim-notarization.zip" --wait --output-format json \
   --apple-id "$APPLE_NOTARIZATION_APPLE_ID" --team-id "$APPLE_TEAM_ID" \
   --password "$APPLE_NOTARIZATION_APP_PASSWORD" >"$tmp/notarization.json"
+jq '{id, status}' "$tmp/notarization.json"
 jq -e '.status == "Accepted"' "$tmp/notarization.json" >/dev/null
 xcrun stapler staple "$app"
 xcrun stapler validate "$app"
