@@ -31,6 +31,7 @@ icon:
 test:
 	for t in test/*.test.js; do node $$t || exit 1; done
 	sh test/cli.test.sh
+	sh test/doctor.test.sh
 	mkdir -p build
 	swiftc app/Hints.swift test/hints/main.swift -o build/hints-test
 	build/hints-test

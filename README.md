@@ -16,12 +16,12 @@
 
 ## What is hintvim?
 
-hintvim is a small macOS menu bar app. Press `Ctrl+;` and every clickable thing in the Claude window gets a short label: the sidebar, the title bar, the model and mode menus, each message's buttons. Type the label and that element is pressed. No mouse.
+hintvim is a small macOS menu bar app. Press `Ctrl+;` to label up to 169 visible controls exposed through Accessibility in the Claude window: the sidebar, the title bar, the model and mode menus, each message's buttons. Type the label and that element is pressed. No mouse.
 
 ![Ctrl+; puts labels on the sidebar; typing CE opens the More menu](docs/demo.gif)
 
 ```
-Ctrl+;            →  labels appear on every button, link, and input
+Ctrl+;            →  labels appear on accessible buttons, links, and inputs
 type "sf"         →  that element is pressed
 j / k / d / u     →  scroll
 Esc               →  leave
@@ -31,7 +31,7 @@ Esc               →  leave
 
 ## Why
 
-Claude Desktop ships plenty of shortcuts (`Cmd+K`, `Cmd+1…9`, `Cmd+Shift+F`), but anything without a binding needs the mouse: the working-directory pill, the model and mode menus, per-message actions. Hint mode covers all of them at once, without a shortcut per control.
+Claude Desktop ships plenty of shortcuts (`Cmd+K`, `Cmd+1…9`, `Cmd+Shift+F`), but anything without a binding needs the mouse: the working-directory pill, the model and mode menus, per-message actions. Hint mode labels these controls without a shortcut per control.
 
 ## Install
 
@@ -175,6 +175,7 @@ A [DevTools snippet](docs/devtools-snippet.md) gives the same hint mode over the
 
 - macOS only.
 - The leader key and the hint alphabet are fixed in the app. The DevTools snippet lets you change them.
+- Hint mode labels at most 169 visible controls per refresh. Scroll to relabel; controls beyond that limit do not receive a label.
 - Each upgrade needs the Accessibility permission again, until there is a signed build ([#4](https://github.com/JeongJaeSoon/hintvim/issues/4)).
 - The overlay drawing and key handling have no automated tests; they are verified by hand on a real Claude Desktop.
 

@@ -446,7 +446,9 @@ final class URLHandler: NSObject {
 
 // Reads the AX tree without drawing or taking keys, so it is safe while the user types elsewhere.
 func probe() {
-  guard AXIsProcessTrusted() else { return log("probe: accessibility not granted") }
+  let trusted = AXIsProcessTrusted()
+  log("probe: accessibility trusted=\(trusted)")
+  guard trusted else { return }
   guard let claude = NSRunningApplication.runningApplications(withBundleIdentifier: claudeBundleID).first else {
     return log("probe: Claude Desktop is not running")
   }

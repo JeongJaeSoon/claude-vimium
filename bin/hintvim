@@ -281,17 +281,26 @@ cmd_doctor() {
   else
     check fail "login item: not loaded (hintvim setup)"
   fi
-  trust=$(grep -o 'trusted=[a-z]*' "$LOG_DIR/app.log" 2>/dev/null | tail -n 1 || true)
-  if [ "$trust" = trusted=true ]; then
-    check ok "accessibility: allowed"
-  else
-    check fail "accessibility: not allowed (System Settings > Privacy & Security > Accessibility)"
+  probe=
+  trust=
+  if pgrep -x Hintvim >/dev/null; then
+    before=0
+    if [ -f "$LOG_DIR/app.log" ]; then before=$(wc -l <"$LOG_DIR/app.log"); fi
+    if open -g "hintvim://probe"; then
+      sleep 2
+      response=$(tail -n +"$((before + 1))" "$LOG_DIR/app.log" 2>/dev/null | grep 'probe:' || true)
+      trust=$(printf '%s\n' "$response" | sed -n 's/.*probe: accessibility trusted=//p' | tail -n 1)
+      probe=$(printf '%s\n' "$response" | grep -v 'probe: accessibility trusted=' | tail -n 1 | sed 's/^[^ ]* probe: //' || true)
+    fi
   fi
-  if [ "$trust" = trusted=true ] && pgrep -x Hintvim >/dev/null; then
-    before=$(wc -l <"$LOG_DIR/app.log")
-    open -g "hintvim://probe"
-    sleep 2
-    probe=$(tail -n +"$((before + 1))" "$LOG_DIR/app.log" | grep 'probe:' | tail -n 1 | sed 's/^[^ ]* probe: //' || true)
+  if [ "$trust" = true ]; then
+    check ok "accessibility: allowed"
+  elif [ "$trust" = false ]; then
+    check fail "accessibility: not allowed (System Settings > Privacy & Security > Accessibility)"
+  else
+    check fail "accessibility: could not verify (hintvim start, then rerun hintvim doctor)"
+  fi
+  if [ "$trust" = true ]; then
     case $probe in
       [1-9]*) check ok "hint targets: $probe" ;;
       *"no window"*) check fail "hint targets: $probe (click Claude in the Dock to open one)" ;;
