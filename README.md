@@ -105,6 +105,8 @@ hintvim was called claude-vimium before 1.0.0. `brew upgrade` moves a claude-vim
 
 Setup restarts the app so the new version runs. Because the app is signed on your Mac (ad hoc) rather than with a Developer ID, **macOS treats each upgraded build as a new app**: the old Accessibility entry still shows as on but no longer applies. Remove **hintvim** with **−** in the Accessibility list, then allow it again when asked. A signed and notarized build that keeps the permission across upgrades is tracked in [#4](https://github.com/JeongJaeSoon/hintvim/issues/4).
 
+업데이트 후 권한 재승인을 줄이기 위한 [Developer ID 서명 배포 준비](docs/signed-distribution.md)가 있습니다. 인증서 등록 및 실제 업그레이드 검증 전에는 기존 source formula의 재승인 절차가 계속 적용됩니다.
+
 When Claude Desktop updates, nothing needs redoing. The app works on Desktop's window through macOS, the plugin stays installed in `~/.claude`, and the login item re-checks the mods switch.
 
 ## Uninstall
