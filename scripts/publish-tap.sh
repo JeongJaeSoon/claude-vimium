@@ -41,7 +41,7 @@ if [ "$mode" = signed ]; then
   tar -xzf "$tarball" -C "$tmp/verify"
   app="$tmp/verify/Hintvim.app"
   requirement="anchor apple generic and certificate leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = \"$APPLE_TEAM_ID\" and identifier \"io.github.jeongjaesoon.hintvim\""
-  codesign --verify --strict -R "$requirement" "$app"
+  codesign --verify --strict -R="$requirement" "$app"
   xcrun stapler validate "$app"
   "$app/Contents/MacOS/Hintvim" --version | grep -qx "hintvim ${tag#v}"
 fi

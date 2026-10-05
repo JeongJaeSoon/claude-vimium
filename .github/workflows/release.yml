@@ -65,6 +65,7 @@ jobs:
         run: |
           v=${VERSION#v}
           grep -qF "/releases/download/v$v/hintvim-$v-macos-universal.tar.gz\"" packaging/hintvim-signed.rb
+          grep -qF "version \"$v\"" packaging/hintvim-cask.rb
           sh scripts/package-signed-release.sh "$VERSION" dist
       - name: Publish the release
         run: |
@@ -72,7 +73,8 @@ jobs:
           awk -v h="## [$v]" 'index($0, h) == 1 {f = 1; next} /^## \[/ {f = 0} f' CHANGELOG.md >notes.md
           if [ "${{ steps.release-mode.outputs.signed }}" = true ]; then
             gh release create "$VERSION" --verify-tag --title "$VERSION" --notes-file notes.md \
-              "dist/hintvim-$v-macos-universal.tar.gz"
+              "dist/hintvim-$v-macos-universal.tar.gz" \
+              "dist/hintvim-$v-macos-universal.dmg"
           else
             gh release create "$VERSION" --verify-tag --title "$VERSION" --notes-file notes.md
           fi

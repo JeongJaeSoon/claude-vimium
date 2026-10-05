@@ -34,3 +34,11 @@ Apple Developer Program 가입 및 Developer ID Application 인증서와 개인 
 기존 source formula CI와 모의 서명 테스트는 배포 경로를 검증할 뿐 실제 Apple 서명·공증이나 TCC 권한 유지의 증거가 아닙니다.
 
 참고: [Apple의 코드 식별 기준](https://developer.apple.com/documentation/technotes/tn3127-inside-code-signing-requirements), [macOS 소프트웨어 공증](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
+
+## DMG와 Cask
+
+서명·공증·staple된 앱과 CLI, completion을 DMG로도 배포합니다. DMG 자체도 Developer ID 서명과 Apple 공증을 받고 staple 검증을 통과해야 합니다. 신규 설치는 `brew install --cask jeongjaesoon/tap/hintvim`을 사용합니다. 기존 Formula는 계속 지원하며, 두 설치 방식은 충돌 방지를 위해 동시에 설치할 수 없습니다. Cask 업그레이드에서는 접근성 권한을 초기화하는 `hintvim uninstall`을 실행하지 않습니다.
+
+Cask 공개는 `APPLE_TEAM_ID`와 `GH_TOKEN`을 설정한 뒤 `sh scripts/publish-cask.sh vX.Y.Z`로 진행합니다. 앱과 DMG의 서명·공증·버전·payload를 검증한 뒤 tap에 반영합니다.
+
+서명되지 않은 개인 tap Cask는 설치될 수 있어도 quarantine이 적용되며 Gatekeeper 실행 심사에서 거부될 수 있습니다. 공식 Homebrew Cask 등록은 서명과 공증 외에도 별도의 수용 기준을 충족해야 합니다. 참고: [Cask Cookbook](https://docs.brew.sh/Cask-Cookbook), [Acceptable Casks](https://docs.brew.sh/Acceptable-Casks).

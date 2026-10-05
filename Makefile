@@ -33,6 +33,7 @@ test:
 	sh test/cli.test.sh
 	sh test/doctor.test.sh
 	sh test/publish-tap.test.sh
+	sh test/publish-cask.test.sh
 	mkdir -p build
 	swiftc app/Hints.swift test/hints/main.swift -o build/hints-test
 	build/hints-test

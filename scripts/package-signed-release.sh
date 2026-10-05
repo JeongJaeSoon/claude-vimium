@@ -85,3 +85,17 @@ cp LICENSE "$stage/LICENSE"
 artifact="$output_dir/hintvim-$version-macos-universal.tar.gz"
 COPYFILE_DISABLE=1 tar -C "$stage" -czf "$artifact" Hintvim.app bin/hintvim completions LICENSE
 echo "$artifact"
+
+dmg="$output_dir/hintvim-$version-macos-universal.dmg"
+hdiutil create -quiet -fs HFS+ -volname Hintvim -srcfolder "$stage" "$tmp/Hintvim-unsigned.dmg"
+codesign --force --timestamp --sign "$signing_hash" --keychain "$keychain" \
+  "$tmp/Hintvim-unsigned.dmg"
+xcrun notarytool submit "$tmp/Hintvim-unsigned.dmg" --wait --output-format json \
+  --apple-id "$APPLE_NOTARIZATION_APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+  --password "$APPLE_NOTARIZATION_APP_PASSWORD" >"$tmp/dmg-notarization.json"
+jq '{id, status}' "$tmp/dmg-notarization.json"
+jq -e '.status == "Accepted"' "$tmp/dmg-notarization.json" >/dev/null
+xcrun stapler staple "$tmp/Hintvim-unsigned.dmg"
+xcrun stapler validate "$tmp/Hintvim-unsigned.dmg"
+mv "$tmp/Hintvim-unsigned.dmg" "$dmg"
+echo "$dmg"

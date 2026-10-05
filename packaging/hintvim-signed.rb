@@ -10,10 +10,11 @@ class Hintvim < Formula
 
   depends_on "jq"
   depends_on macos: :ventura
+  conflicts_with cask: "hintvim", because: "both install the hintvim executable and Hintvim.app"
 
   def install
-    system "/usr/bin/codesign", "--verify", "--strict", "-R",
-           "anchor apple generic and certificate leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = \"#{SIGNING_TEAM_ID}\" and identifier \"io.github.jeongjaesoon.hintvim\"",
+    system "/usr/bin/codesign", "--verify", "--strict",
+           "-R=anchor apple generic and certificate leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = \"#{SIGNING_TEAM_ID}\" and identifier \"io.github.jeongjaesoon.hintvim\"",
            "Hintvim.app"
     prefix.install "Hintvim.app"
     bin.install "bin/hintvim"

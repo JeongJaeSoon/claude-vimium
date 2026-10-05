@@ -227,7 +227,7 @@ cmd_setup() {
   pkill -x Hintvim 2>/dev/null || true
   write_login_item
   say "login item: $AGENT"
-  say "hintvim $VERSION is starting. Allow it in System Settings > Privacy & Security > Accessibility,"
+  say "hintvim $VERSION is starting. If needed, allow it in System Settings > Privacy & Security > Accessibility,"
   say "then click into Claude Desktop and press Ctrl+;."
 }
 

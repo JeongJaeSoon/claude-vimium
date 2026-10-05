@@ -38,7 +38,7 @@ Claude Desktop ships plenty of shortcuts (`Cmd+K`, `Cmd+1…9`, `Cmd+Shift+F`), 
 Requires macOS 13 or later and Claude Desktop.
 
 ```bash
-brew install jeongjaesoon/tap/hintvim && hintvim setup
+brew install --cask jeongjaesoon/tap/hintvim && hintvim setup
 ```
 
 Then turn on **hintvim** in **System Settings → Privacy & Security → Accessibility**. macOS asks the first time the app starts. That's it: click into Claude and press `Ctrl+;`.
@@ -103,7 +103,7 @@ brew upgrade hintvim && hintvim setup
 
 hintvim was called claude-vimium before 1.0.0. `brew upgrade` moves a claude-vimium install to hintvim, and `hintvim setup` then removes claude-vimium's login item, plugin, state and Accessibility entry.
 
-Setup restarts the app so the new version runs. Because the app is signed on your Mac (ad hoc) rather than with a Developer ID, **macOS treats each upgraded build as a new app**: the old Accessibility entry still shows as on but no longer applies. Remove **hintvim** with **−** in the Accessibility list, then allow it again when asked. A signed and notarized build that keeps the permission across upgrades is tracked in [#4](https://github.com/JeongJaeSoon/hintvim/issues/4).
+업데이트 후 `hintvim setup`으로 새 앱을 재시작합니다. 기존 Formula 사용자는 `brew upgrade hintvim`을 계속 사용할 수 있습니다. Formula와 Cask는 동시에 설치할 수 없습니다.
 
 v1.1.0부터 [Developer ID 서명·Apple 공증을 거친 앱](docs/signed-distribution.md)을 Homebrew에서 그대로 설치합니다. 신규 설치와 기존 ad-hoc 버전에서의 첫 전환은 접근성 허용이 필요할 수 있습니다. 이후 업데이트는 같은 서명 기준과 bundle ID를 유지합니다. 실제 업데이트에서의 권한 유지 검증은 아직 완료되지 않았습니다.
 
@@ -178,7 +178,7 @@ A [DevTools snippet](docs/devtools-snippet.md) gives the same hint mode over the
 - macOS only.
 - The leader key and the hint alphabet are fixed in the app. The DevTools snippet lets you change them.
 - Hint mode labels at most 169 visible controls per refresh. Scroll to relabel; controls beyond that limit do not receive a label.
-- Each upgrade needs the Accessibility permission again, until there is a signed build ([#4](https://github.com/JeongJaeSoon/hintvim/issues/4)).
+- 기존 ad-hoc 앱에서 Developer ID 서명 앱으로 처음 전환할 때 접근성 허용이 필요할 수 있습니다.
 - The overlay drawing and key handling have no automated tests; they are verified by hand on a real Claude Desktop.
 
 ## Development
@@ -201,3 +201,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the manual checks a change to the app
 ## Support
 
 If hintvim saves you some clicks, you can [sponsor its development](https://github.com/sponsors/JeongJaeSoon).
+
+Cask를 완전히 제거할 때는 `hintvim uninstall` 후 `brew uninstall --cask hintvim`을 실행합니다. 일반 업그레이드에서는 `hintvim uninstall`을 실행하지 않습니다.
