@@ -89,6 +89,7 @@ jobs:
         run: |
           if [ "${{ steps.release-mode.outputs.signed }}" = true ]; then
             GH_TOKEN="$TAP_TOKEN" sh scripts/publish-tap.sh "$VERSION" signed
+            GH_TOKEN="$TAP_TOKEN" sh scripts/publish-cask.sh "$VERSION"
           else
             GH_TOKEN="$TAP_TOKEN" sh scripts/publish-tap.sh "$VERSION"
           fi
