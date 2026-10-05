@@ -3,7 +3,7 @@
 class Hintvim < Formula
   desc "Vimium-style keyboard hints for Claude Desktop"
   homepage "https://github.com/JeongJaeSoon/hintvim"
-  url "https://github.com/JeongJaeSoon/hintvim/archive/refs/tags/v1.0.2.tar.gz"
+  url "https://github.com/JeongJaeSoon/hintvim/archive/refs/tags/v1.1.0.tar.gz"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
   license "MIT"
   head "https://github.com/JeongJaeSoon/hintvim.git", branch: "main"

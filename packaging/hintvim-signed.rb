@@ -4,7 +4,7 @@ class Hintvim < Formula
 
   desc "Vimium-style keyboard hints for Claude Desktop"
   homepage "https://github.com/JeongJaeSoon/hintvim"
-  url "https://github.com/JeongJaeSoon/hintvim/releases/download/v1.0.2/hintvim-1.0.2-macos-universal.tar.gz"
+  url "https://github.com/JeongJaeSoon/hintvim/releases/download/v1.1.0/hintvim-1.1.0-macos-universal.tar.gz"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
   license "MIT"
 
