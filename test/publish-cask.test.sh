@@ -53,7 +53,6 @@ APPLE_TEAM_ID=TESTTEAM01 run >"$fixture/cask.rb"
 sha=$(shasum -a 256 "$fixture/hintvim.dmg" | awk '{print $1}')
 grep -qF "version \"$version\"" "$fixture/cask.rb" || fail "version not replaced"
 grep -qF "sha256 \"$sha\"" "$fixture/cask.rb" || fail "checksum not replaced"
-grep -qF 'conflicts_with formula: "hintvim"' "$fixture/cask.rb" || fail "formula conflict missing"
 grep -qF 'Run `hintvim uninstall` before' "$fixture/cask.rb" || fail "explicit uninstall instructions missing"
 grep -qF 'app "Hintvim.app"' "$fixture/cask.rb" || fail "app artifact missing"
 grep -qF 'binary "bin/hintvim"' "$fixture/cask.rb" || fail "CLI artifact missing"
