@@ -105,7 +105,7 @@ hintvim was called claude-vimium before 1.0.0. `brew upgrade` moves a claude-vim
 
 업데이트 후 `hintvim setup`으로 새 앱을 재시작합니다. 기존 Formula 사용자는 `brew upgrade hintvim`을 계속 사용할 수 있습니다. Formula와 Cask는 동시에 설치할 수 없습니다.
 
-v1.1.0부터 [Developer ID 서명·Apple 공증을 거친 앱](docs/signed-distribution.md)을 Homebrew에서 그대로 설치합니다. 신규 설치와 기존 ad-hoc 버전에서의 첫 전환은 접근성 허용이 필요할 수 있습니다. 이후 업데이트는 같은 서명 기준과 bundle ID를 유지합니다. 실제 업데이트에서의 권한 유지 검증은 아직 완료되지 않았습니다.
+v1.1.0부터 [Developer ID 서명·Apple 공증을 거친 앱](docs/signed-distribution.md)을 Homebrew에서 그대로 설치합니다. 신규 설치와 기존 ad-hoc 버전에서의 첫 전환은 접근성 허용이 필요할 수 있습니다. 이후 업데이트는 같은 서명 기준과 bundle ID를 유지합니다. 이 Mac에서 signed 1.0.2 → 1.1.0을 `brew upgrade`로 업데이트하고 접근성 설정을 변경하지 않은 상태에서 새 앱의 권한과 Claude Desktop 대상 탐지를 확인했습니다.
 
 When Claude Desktop updates, nothing needs redoing. The app works on Desktop's window through macOS, the plugin stays installed in `~/.claude`, and the login item re-checks the mods switch.
 
