@@ -8,10 +8,18 @@ cask "hintvim" do
   homepage "https://github.com/JeongJaeSoon/hintvim"
 
   depends_on formula: "jq"
-  depends_on macos: ">= :ventura"
-  conflicts_with formula: "hintvim"
+  depends_on macos: :ventura
 
   preflight do
+    installed = system_command "#{HOMEBREW_PREFIX}/bin/brew",
+                               args: ["list", "--formula", "--versions", "hintvim"],
+                               must_succeed: false,
+                               print_stdout: false,
+                               print_stderr: false
+    unless installed.stdout.strip.empty?
+      raise "Uninstall the hintvim Formula before installing the Cask: brew uninstall --formula hintvim"
+    end
+
     system_command "/usr/bin/sed",
                    args: ["-i", "", "-e", "s|@VERSION@|#{version}|g",
                           "-e", "s|@APP@|#{appdir}/Hintvim.app|g",
