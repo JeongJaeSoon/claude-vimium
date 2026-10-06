@@ -1,12 +1,12 @@
 # 업데이트 후 접근성 권한을 유지하는 배포
 
-v1.1.0부터 Homebrew 배포는 CI에서 Developer ID로 서명하고 Apple 공증을 받은 universal 앱을 설치하는 경로를 사용합니다. 기존 source 배포에서 처음 전환할 때는 접근성 권한을 다시 허용해야 할 수 있습니다. 동일한 서명 기준을 사용하는 다음 버전으로 실제 업그레이드했을 때 권한이 유지되는지에 대한 실기기 검증은 아직 완료되지 않았습니다.
+v1.1.0부터 Homebrew 배포는 CI에서 Developer ID로 서명하고 Apple 공증을 받은 universal 앱을 설치하는 경로를 사용합니다. 기존 source 배포에서 처음 전환할 때는 접근성 권한을 다시 허용해야 할 수 있습니다. 2026-10-06 이 Mac에서 signed 1.0.2 → 1.1.0의 실제 Formula 업그레이드를 검증했습니다. 접근성 설정을 변경하지 않고 새 1.1.0 프로세스에서 접근성 허용과 Claude Desktop 대상 탐지가 유지됐습니다.
 
 ## 배포 방식
 
 릴리스 CI에서 universal 앱을 빌드하고 Developer ID Application으로 서명한 뒤 Apple에 공증을 제출합니다. 공증 티켓을 앱에 붙이고 `hintvim-VERSION-macos-universal.tar.gz`로 배포합니다. signed formula는 앱을 다시 빌드하거나 서명하지 않고 그대로 설치합니다. 기존 formula 이름과 `brew upgrade hintvim` 명령은 유지합니다.
 
-동일한 `CFBundleIdentifier`와 Developer ID 서명 기준을 유지해야 합니다. 기존 ad-hoc 앱에서 처음 전환할 때는 접근성 권한을 한 번 더 허용해야 할 수 있습니다. 그 이후의 권한 유지 여부는 두 개의 실제 서명된 버전을 업그레이드하며 검증해야 합니다. 공증만으로 권한 유지가 보장되지는 않습니다.
+동일한 `CFBundleIdentifier`와 Developer ID 서명 기준을 유지해야 합니다. 기존 ad-hoc 앱에서 처음 전환할 때는 접근성 권한을 한 번 더 허용해야 할 수 있습니다. 이번 실기기 검증에서 두 버전의 designated requirement가 동일했고, 업그레이드 후 `hintvim doctor`가 접근성 허용과 124개 대상을 확인했습니다. 이 결과는 해당 Mac의 Formula 업그레이드에 대한 증거이며 모든 macOS 환경의 동작을 보장하지는 않습니다. 공증만으로 권한 유지가 보장되지는 않습니다.
 
 ## 관리자 준비
 

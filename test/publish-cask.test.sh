@@ -80,7 +80,10 @@ APPLE_TEAM_ID=TESTTEAM01 run >/dev/null 2>&1 && fail "missing fish completion ac
 printf complete >"$fixture/payload/completions/hintvim.fish"
 cat >"$fixture/stub/gh" <<'SH'
 #!/bin/sh
-[ "${4:-}" = .sha ] && exit 0
+if [ "${4:-}" = .sha ]; then
+  echo null
+  exit 1
+fi
 printf '%s\n' "$@" >"$TEST_GH_ARGS"
 echo https://example.invalid/commit
 SH

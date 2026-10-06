@@ -59,7 +59,11 @@ fi
 : "${GH_TOKEN:?missing GH_TOKEN}"
 tap=${HINTVIM_TAP_REPOSITORY:-JeongJaeSoon/homebrew-tap}
 path=Casks/hintvim.rb
-old=$(gh api "repos/$tap/contents/$path" --jq .sha 2>/dev/null || true)
+if old=$(gh api "repos/$tap/contents/$path" --jq .sha 2>/dev/null); then
+  :
+else
+  old=
+fi
 if [ -n "$old" ]; then
   current=$(gh api "repos/$tap/contents/$path" --jq .content | base64 --decode)
   current_version=$(printf '%s\n' "$current" | sed -n 's/.*version "\([^"]*\)".*/\1/p')

@@ -57,7 +57,11 @@ if [ -n "${DRY_RUN:-}" ]; then
   exit 0
 fi
 
-old=$(gh api "repos/$tap/contents/$path" --jq .sha 2>/dev/null || true)
+if old=$(gh api "repos/$tap/contents/$path" --jq .sha 2>/dev/null); then
+  :
+else
+  old=
+fi
 if [ "$mode" = source ] && [ -n "$old" ]; then
   current=$(gh api "repos/$tap/contents/$path" --jq .content)
   if printf '%s' "$current" | base64 --decode | grep -q '/releases/download/'; then
