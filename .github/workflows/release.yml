@@ -22,16 +22,74 @@ jobs:
           grep -qF "\"version\": \"$v\"" plugin/.claude-plugin/plugin.json
           grep -qF "/tags/v$v.tar.gz\"" packaging/hintvim.rb
           awk -v h="## [$v]" 'index($0, h) == 1 {f = 1} END {exit !f}' CHANGELOG.md
+      - name: Select release mode
+        id: release-mode
+        env:
+          APPLE_SIGNING_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}
+          APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_NOTARIZATION_APPLE_ID: ${{ secrets.APPLE_NOTARIZATION_APPLE_ID }}
+          APPLE_NOTARIZATION_APP_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_APP_PASSWORD }}
+        run: |
+          present=0
+          missing=0
+          for name in \
+            APPLE_SIGNING_CERTIFICATE_P12_BASE64 \
+            APPLE_SIGNING_CERTIFICATE_PASSWORD \
+            APPLE_SIGNING_IDENTITY \
+            APPLE_TEAM_ID \
+            APPLE_NOTARIZATION_APPLE_ID \
+            APPLE_NOTARIZATION_APP_PASSWORD
+          do
+            value=$(printenv "$name" || true)
+            if [ -n "$value" ]; then present=$((present + 1)); else missing=$((missing + 1)); fi
+          done
+          if [ "$present" -eq 0 ]; then
+            echo "signed=false" >>"$GITHUB_OUTPUT"
+          elif [ "$missing" -eq 0 ]; then
+            echo "signed=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "Apple signing credentials are only partially configured" >&2
+            exit 1
+          fi
+      - name: Build, sign, notarize, and package the app
+        if: steps.release-mode.outputs.signed == 'true'
+        env:
+          APPLE_SIGNING_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}
+          APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_NOTARIZATION_APPLE_ID: ${{ secrets.APPLE_NOTARIZATION_APPLE_ID }}
+          APPLE_NOTARIZATION_APP_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_APP_PASSWORD }}
+        run: |
+          v=${VERSION#v}
+          grep -qF "/releases/download/v$v/hintvim-$v-macos-universal.tar.gz\"" packaging/hintvim-signed.rb
+          grep -qF "version \"$v\"" packaging/hintvim-cask.rb
+          sh scripts/package-signed-release.sh "$VERSION" dist
       - name: Publish the release
         run: |
           v=${VERSION#v}
           awk -v h="## [$v]" 'index($0, h) == 1 {f = 1; next} /^## \[/ {f = 0} f' CHANGELOG.md >notes.md
-          gh release create "$VERSION" --verify-tag --title "$VERSION" --notes-file notes.md
+          if [ "${{ steps.release-mode.outputs.signed }}" = true ]; then
+            gh release create "$VERSION" --verify-tag --title "$VERSION" --notes-file notes.md \
+              "dist/hintvim-$v-macos-universal.tar.gz" \
+              "dist/hintvim-$v-macos-universal.dmg"
+          else
+            gh release create "$VERSION" --verify-tag --title "$VERSION" --notes-file notes.md
+          fi
       # Publishing to the public tap is the maintainer's call: this runs only once
       # a TAP_TOKEN secret with write access to the tap exists, and needs a public
       # repository, whose tarball Homebrew can download.
       - name: Commit the formula to the tap
         env:
           TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         if: env.TAP_TOKEN != ''
-        run: GH_TOKEN="$TAP_TOKEN" sh scripts/publish-tap.sh "$VERSION"
+        run: |
+          if [ "${{ steps.release-mode.outputs.signed }}" = true ]; then
+            GH_TOKEN="$TAP_TOKEN" sh scripts/publish-tap.sh "$VERSION" signed
+            GH_TOKEN="$TAP_TOKEN" sh scripts/publish-cask.sh "$VERSION"
+          else
+            GH_TOKEN="$TAP_TOKEN" sh scripts/publish-tap.sh "$VERSION"
+          fi

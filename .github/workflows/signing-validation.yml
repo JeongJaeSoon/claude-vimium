@@ -1,0 +1,72 @@
+name: Signed distribution validation
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/signing-validation.yml'
+      - 'scripts/package-signed-release.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signing:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Validate signing and notarization without publishing
+        env:
+          APPLE_SIGNING_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}
+          APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_NOTARIZATION_APPLE_ID: ${{ secrets.APPLE_NOTARIZATION_APPLE_ID }}
+          APPLE_NOTARIZATION_APP_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_APP_PASSWORD }}
+        run: sh scripts/package-signed-release.sh v1.0.2 dist
+      - name: Install and test the signed Formula
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_ANALYTICS: "1"
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          archive="$PWD/dist/hintvim-1.0.2-macos-universal.tar.gz"
+          brew tap-new --no-git ci/signed
+          tap=$(brew --repository ci/signed)
+          sed -e "s#^  url .*#  url \"file://$archive\"#" \
+              -e "s#^  sha256 .*#  sha256 \"$(shasum -a 256 "$archive" | cut -d' ' -f1)\"#" \
+              -e "s/@SIGNING_TEAM_ID@/$APPLE_TEAM_ID/g" \
+              packaging/hintvim-signed.rb >"$tap/Formula/hintvim.rb"
+          brew install --formula ci/signed/hintvim
+          brew test ci/signed/hintvim
+          installed=$(brew --prefix hintvim)/Hintvim.app
+          codesign --verify --strict -R=notarized "$installed"
+          xcrun stapler validate "$installed"
+          spctl --assess --type execute --verbose=2 "$installed"
+      - name: Install and verify the signed Cask
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_ANALYTICS: "1"
+        run: |
+          brew uninstall --formula ci/signed/hintvim
+          dmg="$PWD/dist/hintvim-1.0.2-macos-universal.dmg"
+          tap=$(brew --repository ci/signed)
+          mkdir -p "$tap/Casks"
+          sed -e 's/version "1.1.0"/version "1.0.2"/' \
+              -e "s#^  url .*#  url \"file://$dmg\"#" \
+              -e "s#^  sha256 .*#  sha256 \"$(shasum -a 256 "$dmg" | cut -d' ' -f1)\"#" \
+              packaging/hintvim-cask.rb >"$tap/Casks/hintvim.rb"
+          brew install --cask ci/signed/hintvim
+          test "$(hintvim --version)" = 'hintvim 1.0.2'
+          codesign --verify --strict -R=notarized /Applications/Hintvim.app
+          xcrun stapler validate /Applications/Hintvim.app
+          spctl --assess --type execute --verbose=2 /Applications/Hintvim.app
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: signed-validation
+          path: |
+            dist/*.tar.gz
+            dist/*.dmg
+          retention-days: 3

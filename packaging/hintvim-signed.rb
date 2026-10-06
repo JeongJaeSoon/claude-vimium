@@ -1,19 +1,22 @@
-# The tap's copy is the real one: the release workflow fills in url and sha256 for each
-# tag, which this file cannot hold, since it is part of the tarball it would hash.
+# The release workflow fills in the signed archive's sha256 before publishing to the tap.
 class Hintvim < Formula
+  SIGNING_TEAM_ID = "@SIGNING_TEAM_ID@".freeze
+
   desc "Vimium-style keyboard hints for Claude Desktop"
   homepage "https://github.com/JeongJaeSoon/hintvim"
-  url "https://github.com/JeongJaeSoon/hintvim/archive/refs/tags/v1.1.0.tar.gz"
+  url "https://github.com/JeongJaeSoon/hintvim/releases/download/v1.1.0/hintvim-1.1.0-macos-universal.tar.gz"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
   license "MIT"
-  head "https://github.com/JeongJaeSoon/hintvim.git", branch: "main"
 
   depends_on "jq"
   depends_on macos: :ventura
+  conflicts_with cask: "hintvim", because: "both install the hintvim executable and Hintvim.app"
 
   def install
-    system "make", "app", "VERSION=#{version}", "ARCHS=#{Hardware::CPU.arch}"
-    prefix.install "build/Hintvim.app"
+    system "/usr/bin/codesign", "--verify", "--strict",
+           "-R=anchor apple generic and certificate leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = \"#{SIGNING_TEAM_ID}\" and identifier \"io.github.jeongjaesoon.hintvim\"",
+           "Hintvim.app"
+    prefix.install "Hintvim.app"
     bin.install "bin/hintvim"
     inreplace bin/"hintvim" do |s|
       s.gsub! "@VERSION@", version.to_s
@@ -33,8 +36,10 @@ class Hintvim < Formula
       It installs the Claude plugin, starts the app and starts it at login.
       Then allow hintvim in System Settings > Privacy & Security > Accessibility.
 
-      The app is built and signed on this Mac, so macOS asks for that permission
-      again after each upgrade. Run `hintvim uninstall` before
+      This app is signed with Developer ID. Allow Accessibility once on the first
+      install or when switching from the source-built version. Later upgrades using
+      the same signing identity are intended to retain that permission.
+      Run `hintvim uninstall` before
       `brew uninstall hintvim` to undo what setup changed.
     EOS
   end
@@ -42,6 +47,7 @@ class Hintvim < Formula
   test do
     assert_match "hintvim #{version}", shell_output("#{bin}/hintvim version")
     app = prefix/"Hintvim.app/Contents/MacOS/Hintvim"
+    system "/usr/bin/codesign", "--verify", "--strict", prefix/"Hintvim.app"
     assert_match "hintvim #{version}", shell_output("#{app} --version")
   end
 end
