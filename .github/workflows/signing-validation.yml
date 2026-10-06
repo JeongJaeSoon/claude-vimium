@@ -39,7 +39,7 @@ jobs:
               -e "s/@SIGNING_TEAM_ID@/$APPLE_TEAM_ID/g" \
               packaging/hintvim-signed.rb >"$tap/Formula/hintvim.rb"
           brew install --formula ci/signed/hintvim
-          brew test --formula ci/signed/hintvim
+          brew test ci/signed/hintvim
           installed=$(brew --prefix hintvim)/Hintvim.app
           codesign --verify --strict -R=notarized "$installed"
           xcrun stapler validate "$installed"
@@ -63,6 +63,7 @@ jobs:
           xcrun stapler validate /Applications/Hintvim.app
           spctl --assess --type execute --verbose=2 /Applications/Hintvim.app
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
         with:
           name: signed-validation
           path: |
